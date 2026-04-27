@@ -8,11 +8,17 @@ const geometryCache = new Map<string, THREE.BoxGeometry>();
 const materialCache = new Map<string, THREE.MeshLambertMaterial>();
 
 export type LaneKind = "grass" | "road";
+export type SafeLaneState = "locked" | "unlocked";
 
 export interface VehicleStyle {
   body: number;
   cabin: number;
   length: number;
+}
+
+export interface LaneVisual {
+  group: THREE.Group;
+  surface: THREE.Mesh<THREE.BoxGeometry, THREE.MeshLambertMaterial>;
 }
 
 export class GameScene {
@@ -86,17 +92,16 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  createLane(index: number, kind: LaneKind): THREE.Group {
+  createLane(index: number, kind: LaneKind, safeState: SafeLaneState = "unlocked"): LaneVisual {
     const lane = new THREE.Group();
     const z = laneIndexToZ(index);
     const isRoad = kind === "road";
-    const base = block(
-      WORLD_HALF_WIDTH * 2,
-      0.22,
-      LANE_DEPTH,
-      isRoad ? 0x505a65 : index % 2 === 0 ? 0xa9ef52 : 0xb8f461,
+    const base = new THREE.Mesh(
+      getGeometry(WORLD_HALF_WIDTH * 2, 0.22, LANE_DEPTH),
+      new THREE.MeshLambertMaterial({ color: isRoad ? 0x505a65 : safeLaneColor(safeState) }),
     );
     base.position.set(0, -0.11, z);
+    base.castShadow = true;
     base.receiveShadow = true;
     lane.add(base);
 
@@ -107,7 +112,48 @@ export class GameScene {
     }
 
     this.world.add(lane);
-    return lane;
+    return { group: lane, surface: base };
+  }
+
+  setSafeLaneState(surface: THREE.Mesh<THREE.BoxGeometry, THREE.MeshLambertMaterial>, state: SafeLaneState): void {
+    surface.material.color.setHex(safeLaneColor(state));
+  }
+
+  createMathText(expression: string, unlocked: boolean): THREE.Mesh {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 160;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Could not create math text canvas.");
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = "900 56px Inter, Arial, sans-serif";
+    context.lineWidth = 10;
+    context.strokeStyle = unlocked ? "rgba(255,255,255,0.9)" : "rgba(255,248,188,0.95)";
+    context.fillStyle = "#17202a";
+    context.strokeText(expression, canvas.width / 2, canvas.height / 2);
+    context.fillText(expression, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+    texture.needsUpdate = true;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 1.1), material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.renderOrder = 2;
+    return mesh;
   }
 
   createPlayer(): THREE.Group {
@@ -242,4 +288,8 @@ function lighten(color: number, multiplier: number): number {
   const value = new THREE.Color(color);
   value.multiplyScalar(multiplier);
   return value.getHex();
+}
+
+function safeLaneColor(state: SafeLaneState): number {
+  return state === "unlocked" ? 0xa9ef52 : 0xffd447;
 }

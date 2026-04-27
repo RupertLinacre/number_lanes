@@ -18,8 +18,16 @@
           <strong id="best">0</strong>
         </div>
       </div>
-      <div id="prompt">Press Space to hop forward</div>
-      <canvas id="game-canvas" aria-label="3D road crossing game"></canvas>
+      <form id="answer-panel" autocomplete="off">
+        <label id="answer-label" for="answer-input">Solve to unlock</label>
+        <div id="question-text">Ready?</div>
+        <div class="answer-row">
+          <input id="answer-input" type="text" inputmode="decimal" aria-label="Math answer" />
+          <button type="submit">OK</button>
+        </div>
+        <div id="answer-feedback" aria-live="polite">Answer, then press Space.</div>
+      </form>
+      <canvas id="game-canvas" tabindex="0" aria-label="3D road crossing game"></canvas>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
