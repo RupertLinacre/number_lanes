@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Hop Lane</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="hud" aria-live="polite">
+        <div>
+          <span class="label">Score</span>
+          <strong id="score">0</strong>
+        </div>
+        <div>
+          <span class="label">Best</span>
+          <strong id="best">0</strong>
+        </div>
+      </div>
+      <div id="prompt">Press Space to hop forward</div>
+      <canvas id="game-canvas" aria-label="3D road crossing game"></canvas>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
