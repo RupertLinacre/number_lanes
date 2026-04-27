@@ -156,6 +156,33 @@ export class GameScene {
     return mesh;
   }
 
+  createQuestionHighlight(): THREE.Group {
+    const group = new THREE.Group();
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.3, 1.18),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        opacity: 0.42,
+        transparent: true,
+        depthWrite: false,
+      }),
+    );
+    plate.rotation.x = -Math.PI / 2;
+    plate.renderOrder = 1;
+
+    const pointer = new THREE.Mesh(
+      new THREE.ConeGeometry(0.35, 0.55, 4),
+      new THREE.MeshLambertMaterial({ color: 0xff3d3d }),
+    );
+    pointer.position.set(0, 0.55, 0.82);
+    pointer.rotation.y = Math.PI / 4;
+    pointer.castShadow = true;
+
+    group.add(plate, pointer);
+    group.visible = false;
+    return group;
+  }
+
   createPlayer(): THREE.Group {
     const player = new THREE.Group();
     player.add(block(1.05, 0.58, 1.05, 0x38d659));

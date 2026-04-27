@@ -18,15 +18,15 @@
           <strong id="best">0</strong>
         </div>
       </div>
-      <form id="answer-panel" autocomplete="off">
-        <label id="answer-label" for="answer-input">Solve to unlock</label>
+      <section id="answer-panel" aria-live="polite">
+        <div id="answer-label">Target next lane</div>
         <div id="question-text">Ready?</div>
-        <div class="answer-row">
-          <input id="answer-input" type="text" inputmode="decimal" aria-label="Math answer" />
-          <button type="submit">OK</button>
+        <div class="live-answer">
+          <span id="answer-prefix">Answer</span>
+          <div id="answer-input" role="textbox" aria-label="Live math answer">...</div>
         </div>
-        <div id="answer-feedback" aria-live="polite">Answer, then press Space.</div>
-      </form>
+        <div id="answer-feedback">Use arrows, type, Enter.</div>
+      </section>
       <canvas id="game-canvas" tabindex="0" aria-label="3D road crossing game"></canvas>
     </div>
     <script type="module" src="/src/main.ts"></script>
