@@ -174,7 +174,7 @@ export class GameScene {
       new THREE.ConeGeometry(0.35, 0.55, 4),
       new THREE.MeshLambertMaterial({ color: 0xff3d3d }),
     );
-    pointer.position.set(0, 0.55, 0.82);
+    pointer.position.set(0, 0.55, -0.82);
     pointer.rotation.y = Math.PI / 4;
     pointer.castShadow = true;
 
@@ -261,7 +261,7 @@ export class GameScene {
       return;
     }
 
-    const treeSlots = [-11, -7, 7, 11];
+    const treeSlots = [-12, 12];
     for (const x of treeSlots) {
       if ((index + Math.abs(x)) % 3 !== 0) {
         continue;

@@ -79,6 +79,7 @@ export class Game {
   private readonly questionText: HTMLElement;
   private readonly answerDisplay: HTMLElement;
   private readonly answerFeedback: HTMLElement;
+  private readonly restartButton: HTMLButtonElement;
   private playerLane = START_LANE;
   private targetLane = START_LANE;
   private selectedSlotIndex = START_SLOT_INDEX;
@@ -88,6 +89,7 @@ export class Game {
   private hopEndX = PROBLEM_SLOTS[START_SLOT_INDEX];
   private hopEndZ = laneIndexToZ(START_LANE);
   private answerText = "";
+  private gameOver = false;
   private maxLaneReached = 0;
   private bestLaneReached = Number(localStorage.getItem("hop-lane-best") ?? 0);
   private animationId = 0;
@@ -102,6 +104,8 @@ export class Game {
     this.questionText = requireElement("#question-text");
     this.answerDisplay = requireElement("#answer-input");
     this.answerFeedback = requireElement("#answer-feedback");
+    this.restartButton = requireElement("#restart-button");
+    this.restartButton.addEventListener("click", () => this.resetRound());
 
     this.player = this.gameScene.createPlayer();
     this.targetHighlight = this.gameScene.createQuestionHighlight();
@@ -223,8 +227,15 @@ export class Game {
     checkpoint.problems.forEach((entry, problemIndex) => {
       if (entry.mesh) {
         checkpoint.visual.group.remove(entry.mesh);
+        entry.mesh = undefined;
       }
+    });
 
+    if (checkpoint.laneIndex === START_LANE) {
+      return;
+    }
+
+    checkpoint.problems.forEach((entry, problemIndex) => {
       const displayText = entry.solved
         ? `OK ${entry.problem.expression_short}`
         : entry.problem.expression_short;
@@ -260,6 +271,13 @@ export class Game {
 
   private handleAnswerInput(): void {
     const events = this.input.consumeAnswerInput();
+    if (this.gameOver) {
+      if (events.submit) {
+        this.resetRound();
+      }
+      return;
+    }
+
     if (events.clear) {
       this.answerText = "";
     }
@@ -296,7 +314,7 @@ export class Game {
   }
 
   private moveSelection(direction: -1 | 0 | 1): void {
-    if (direction === 0 || this.hopProgress < 1 || !this.currentCheckpoint()) {
+    if (this.gameOver || direction === 0 || this.hopProgress < 1 || !this.currentCheckpoint()) {
       return;
     }
 
@@ -317,7 +335,7 @@ export class Game {
   }
 
   private advancePlayer(): void {
-    if (this.hopProgress < 1) {
+    if (this.gameOver || this.hopProgress < 1) {
       return;
     }
 
@@ -337,6 +355,10 @@ export class Game {
   }
 
   private updatePlayer(delta: number): void {
+    if (this.gameOver) {
+      return;
+    }
+
     const selectedX = PROBLEM_SLOTS[this.selectedSlotIndex];
 
     if (this.hopProgress >= 1) {
@@ -385,6 +407,10 @@ export class Game {
   }
 
   private checkCollisions(): void {
+    if (this.gameOver) {
+      return;
+    }
+
     const lane = this.lanes.get(Math.round(-this.player.position.z / TILE_SIZE));
     if (!lane || lane.kind !== "road") {
       return;
@@ -397,7 +423,10 @@ export class Game {
       const zOverlap = Math.abs(vehicleZ - playerZ) < LANE_DEPTH * 0.42;
 
       if (xOverlap && zOverlap) {
-        this.resetRound("Squashed. Back to start.");
+        this.endRound(
+          "Squashed by traffic",
+          "You were hit by a car. Press Enter or click Restart to try again.",
+        );
         return;
       }
     }
@@ -428,7 +457,11 @@ export class Game {
 
     const selectedProblem = targetCheckpoint.problems[this.selectedSlotIndex];
     if (!checkAnswer(selectedProblem.problem, answer)) {
-      this.resetRound("Wrong answer. Back to start.");
+      const correctAnswer = selectedProblem.problem.formattedAnswer || String(selectedProblem.problem.answer);
+      this.endRound(
+        "Wrong answer",
+        `${selectedProblem.problem.expression} = ${correctAnswer}. Press Enter or click Restart to try again.`,
+      );
       return;
     }
 
@@ -443,6 +476,8 @@ export class Game {
   }
 
   private resetRound(feedback = "Target the next safe lane."): void {
+    this.gameOver = false;
+    this.restartButton.hidden = true;
     this.playerLane = START_LANE;
     this.targetLane = START_LANE;
     this.selectedSlotIndex = START_SLOT_INDEX;
@@ -459,6 +494,17 @@ export class Game {
     this.resetCheckpoints();
     this.updateHud();
     this.answerFeedback.textContent = feedback;
+  }
+
+  private endRound(title: string, detail: string): void {
+    this.gameOver = true;
+    this.answerText = "";
+    this.targetHighlight.visible = false;
+    this.answerLabel.textContent = "Game over";
+    this.questionText.textContent = title;
+    this.answerFeedback.textContent = detail;
+    this.restartButton.hidden = false;
+    this.updateAnswerDisplay();
   }
 
   private resetVehicles(): void {
@@ -512,7 +558,7 @@ export class Game {
 
   private updateTargetHighlight(): void {
     const checkpoint = this.targetCheckpoint();
-    if (!checkpoint || checkpoint.unlocked || this.hopProgress < 1) {
+    if (this.gameOver || !checkpoint || checkpoint.unlocked || this.hopProgress < 1) {
       this.targetHighlight.visible = false;
       return;
     }
@@ -533,6 +579,10 @@ export class Game {
   }
 
   private updateQuestionPanel(): void {
+    if (this.gameOver) {
+      return;
+    }
+
     const currentCheckpoint = this.currentCheckpoint();
     if (!currentCheckpoint) {
       this.answerLabel.textContent = "Crossing";
