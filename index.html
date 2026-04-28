@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/number_lanes/favicon.svg" type="image/svg+xml" />
+    <title>Hop Lane</title>
+    <script type="module" crossorigin src="/number_lanes/assets/index-CgKTty50.js"></script>
+    <link rel="stylesheet" crossorigin href="/number_lanes/assets/index-CwOXLtue.css">
+  </head>
+  <body>
+    <div id="app">
+      <div id="hud" aria-live="polite">
+        <div>
+          <span class="label">Score</span>
+          <strong id="score">0</strong>
+          <div id="difficulty-stats" aria-label="Correct answers total"></div>
+        </div>
+        <div>
+          <span class="label">Best</span>
+          <strong id="best">0</strong>
+        </div>
+      </div>
+      <section id="answer-panel" aria-live="polite">
+        <div id="question-text">Ready?</div>
+        <div class="live-answer">
+          <span id="answer-prefix">Answer</span>
+          <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
+        </div>
+        <div id="answer-feedback"></div>
+        <button id="restart-button" type="button" hidden>Restart</button>
+      </section>
+      <div id="gameplay-instructions">
+        Use left and right arrow to select question. Press return or space to hop
+      </div>
+      <details id="settings-panel">
+        <summary aria-label="Game settings">⚙</summary>
+        <form id="settings-form">
+          <label>
+            <input id="setting-save-progress" type="checkbox" />
+            Save progress
+          </label>
+          <label>
+            <input id="setting-require-all" type="checkbox" />
+            Answer all three
+          </label>
+          <label>
+            Wrong answer lives
+            <input id="setting-wrong-lives" type="number" min="1" step="1" />
+          </label>
+          <label>
+            Run-over lives
+            <input id="setting-traffic-lives" type="number" min="1" step="1" />
+          </label>
+          <label>
+            Base difficulty
+            <select id="setting-base-difficulty">
+              <option value="reception">Reception</option>
+              <option value="year1">Year 1</option>
+              <option value="year2">Year 2</option>
+              <option value="year3">Year 3</option>
+              <option value="year4">Year 4</option>
+              <option value="year5">Year 5</option>
+              <option value="year6">Year 6</option>
+            </select>
+          </label>
+        </form>
+      </details>
+      <canvas id="game-canvas" tabindex="0" aria-label="3D road crossing game"></canvas>
+    </div>
+  </body>
+</html>
