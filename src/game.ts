@@ -61,7 +61,6 @@ const CHECKPOINT_PROBLEM_COUNT = 3;
 const ROAD_GROUP_SEQUENCE = [1, 2, 3, 4] as const;
 const PROBLEM_SLOTS = [-6, 0, 6];
 const START_SLOT_INDEX = 1;
-const SAVE_PROGRESS_STORAGE_KEY = "hop-lane-unlocked-checkpoints";
 const VEHICLE_STYLES: VehicleStyle[] = [
   { body: 0xff6d3a, cabin: 0xffffff, length: 2.6 },
   { body: 0x00a8d8, cabin: 0xf0ffff, length: 2.35 },
@@ -94,9 +93,8 @@ export class Game {
   private maxLaneReached = 0;
   private bestLaneReached = Number(localStorage.getItem("hop-lane-best") ?? 0);
   private readonly shouldSaveProgress = readSaveProgressSetting();
-  private readonly savedUnlockedCheckpoints = new Set<number>(
-    this.shouldSaveProgress ? readSavedUnlockedCheckpoints() : [START_LANE],
-  );
+  private readonly shouldRequireAllQuestions = readRequireAllQuestionsSetting();
+  private readonly savedUnlockedCheckpoints = new Set<number>([START_LANE]);
   private animationId = 0;
 
   constructor(
@@ -489,6 +487,14 @@ export class Game {
     }
 
     const selectedProblem = targetCheckpoint.problems[this.selectedSlotIndex];
+    if (selectedProblem.solved) {
+      this.answerText = "";
+      this.selectNextUnsolvedProblem(targetCheckpoint);
+      this.updateQuestionPanel();
+      this.updateAnswerDisplay();
+      return;
+    }
+
     if (!checkAnswer(selectedProblem.problem, answer)) {
       const correctAnswer = selectedProblem.problem.formattedAnswer || String(selectedProblem.problem.answer);
       this.endRound(
@@ -499,13 +505,25 @@ export class Game {
     }
 
     selectedProblem.solved = true;
-    targetCheckpoint.unlocked = true;
-    this.saveUnlockedCheckpoint(targetCheckpoint.laneIndex);
+    targetCheckpoint.unlocked =
+      !this.shouldRequireAllQuestions || targetCheckpoint.problems.every((entry) => entry.solved);
+    if (targetCheckpoint.unlocked) {
+      this.saveUnlockedCheckpoint(targetCheckpoint.laneIndex);
+      this.gameScene.setSafeLaneState(targetCheckpoint.visual.surface, "unlocked");
+    } else {
+      this.selectNextUnsolvedProblem(targetCheckpoint);
+    }
     this.answerText = "";
-    this.gameScene.setSafeLaneState(targetCheckpoint.visual.surface, "unlocked");
     this.refreshCheckpointText(targetCheckpoint);
     this.updateQuestionPanel();
     this.updateAnswerDisplay();
+  }
+
+  private selectNextUnsolvedProblem(checkpoint: Checkpoint): void {
+    const nextProblemIndex = checkpoint.problems.findIndex((entry) => !entry.solved);
+    if (nextProblemIndex >= 0) {
+      this.selectedSlotIndex = nextProblemIndex;
+    }
   }
 
   private resetRound(feedback = ""): void {
@@ -583,10 +601,6 @@ export class Game {
     }
 
     this.savedUnlockedCheckpoints.add(laneIndex);
-    localStorage.setItem(
-      SAVE_PROGRESS_STORAGE_KEY,
-      JSON.stringify([...this.savedUnlockedCheckpoints].sort((a, b) => a - b)),
-    );
   }
 
   private currentCheckpoint(): Checkpoint | undefined {
@@ -717,31 +731,33 @@ function requireElement<T extends HTMLElement = HTMLElement>(selector: string): 
 }
 
 function readSaveProgressSetting(): boolean {
+  return readBooleanQuerySetting(["saveProgress", "save_progress"]);
+}
+
+function readRequireAllQuestionsSetting(): boolean {
+  return readBooleanQuerySetting([
+    "requireAllQuestions",
+    "require_all_questions",
+    "allQuestions",
+    "all_questions",
+  ]);
+}
+
+function readBooleanQuerySetting(names: string[]): boolean {
   const parameters = new URLSearchParams(window.location.search);
-  const value = parameters.get("saveProgress") ?? parameters.get("save_progress");
+  let value: string | null = null;
+  for (const name of names) {
+    value = parameters.get(name);
+    if (value !== null) {
+      break;
+    }
+  }
+
   if (value === null) {
     return false;
   }
 
   return !["0", "false", "off", "no"].includes(value.toLowerCase());
-}
-
-function readSavedUnlockedCheckpoints(): number[] {
-  try {
-    const savedValue = localStorage.getItem(SAVE_PROGRESS_STORAGE_KEY);
-    if (!savedValue) {
-      return [];
-    }
-
-    const parsedValue: unknown = JSON.parse(savedValue);
-    if (!Array.isArray(parsedValue)) {
-      return [];
-    }
-
-    return parsedValue.filter((value): value is number => Number.isInteger(value) && value >= START_LANE);
-  } catch {
-    return [];
-  }
 }
 
 function easeOutCubic(value: number): number {
