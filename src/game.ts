@@ -52,6 +52,7 @@ interface LanePlan {
   section: number;
   incomingRoadCount: number;
   outgoingRoadCount: number;
+  roadOffset: number;
 }
 
 const START_LANE = 0;
@@ -75,7 +76,6 @@ export class Game {
   private readonly clock = new THREE.Clock();
   private readonly scoreElement: HTMLElement;
   private readonly bestElement: HTMLElement;
-  private readonly answerLabel: HTMLElement;
   private readonly questionText: HTMLElement;
   private readonly answerDisplay: HTMLElement;
   private readonly answerFeedback: HTMLElement;
@@ -100,7 +100,6 @@ export class Game {
   ) {
     this.scoreElement = requireElement("#score");
     this.bestElement = requireElement("#best");
-    this.answerLabel = requireElement("#answer-label");
     this.questionText = requireElement("#question-text");
     this.answerDisplay = requireElement("#answer-input");
     this.answerFeedback = requireElement("#answer-feedback");
@@ -165,7 +164,12 @@ export class Game {
   private createLane(index: number): Lane {
     const plan = getLanePlan(index);
     const isCheckpoint = plan.kind === "grass";
-    const visual = this.gameScene.createLane(index, plan.kind, isCheckpoint ? "locked" : "unlocked");
+    const visual = this.gameScene.createLane(
+      index,
+      plan.kind,
+      isCheckpoint ? "locked" : "unlocked",
+      plan.kind === "road" && plan.roadOffset < plan.outgoingRoadCount - 1,
+    );
 
     const lane: Lane = {
       index,
@@ -236,6 +240,10 @@ export class Game {
     }
 
     checkpoint.problems.forEach((entry, problemIndex) => {
+      if (checkpoint.unlocked && !entry.solved) {
+        return;
+      }
+
       const displayText = entry.solved
         ? `OK ${entry.problem.expression_short}`
         : entry.problem.expression_short;
@@ -293,8 +301,27 @@ export class Game {
     this.updateAnswerDisplay();
 
     if (events.submit) {
+      if (this.shouldSubmitHop()) {
+        this.advancePlayer();
+        return;
+      }
+
       this.submitAnswer();
     }
+  }
+
+  private shouldSubmitHop(): boolean {
+    if (this.gameOver || this.hopProgress < 1) {
+      return false;
+    }
+
+    const currentCheckpoint = this.currentCheckpoint();
+    if (!currentCheckpoint) {
+      return true;
+    }
+
+    const targetCheckpoint = currentCheckpoint ? this.nextCheckpointFrom(currentCheckpoint) : undefined;
+    return Boolean(targetCheckpoint?.unlocked);
   }
 
   private addAnswerCharacter(character: string): void {
@@ -443,7 +470,7 @@ export class Game {
     }
 
     if (targetCheckpoint.unlocked) {
-      this.answerFeedback.textContent = "Already unlocked. Press Space.";
+      this.advancePlayer();
       this.answerText = "";
       this.updateAnswerDisplay();
       return;
@@ -472,10 +499,9 @@ export class Game {
     this.refreshCheckpointText(targetCheckpoint);
     this.updateQuestionPanel();
     this.updateAnswerDisplay();
-    this.answerFeedback.textContent = "Correct. Press Space to cross.";
   }
 
-  private resetRound(feedback = "Target the next safe lane."): void {
+  private resetRound(feedback = ""): void {
     this.gameOver = false;
     this.restartButton.hidden = true;
     this.playerLane = START_LANE;
@@ -500,7 +526,6 @@ export class Game {
     this.gameOver = true;
     this.answerText = "";
     this.targetHighlight.visible = false;
-    this.answerLabel.textContent = "Game over";
     this.questionText.textContent = title;
     this.answerFeedback.textContent = detail;
     this.restartButton.hidden = false;
@@ -585,35 +610,31 @@ export class Game {
 
     const currentCheckpoint = this.currentCheckpoint();
     if (!currentCheckpoint) {
-      this.answerLabel.textContent = "Crossing";
       this.questionText.textContent = "Keep hopping";
-      this.answerFeedback.textContent = "Avoid cars and reach the next safe lane.";
+      this.answerFeedback.textContent = "";
       return;
     }
 
     const targetCheckpoint = this.nextCheckpointFrom(currentCheckpoint);
     if (!targetCheckpoint) {
-      this.answerLabel.textContent = "Scanning";
       this.questionText.textContent = "Next lane loading";
-      this.answerFeedback.textContent = "Keep steady.";
+      this.answerFeedback.textContent = "";
       return;
     }
 
     if (targetCheckpoint.unlocked) {
-      this.answerLabel.textContent = "Ready to cross";
       this.questionText.textContent = `${targetCheckpoint.incomingRoadCount} road lane${targetCheckpoint.incomingRoadCount === 1 ? "" : "s"} ahead`;
-      this.answerFeedback.textContent = "Press Space to hop.";
+      this.answerFeedback.textContent = "";
       return;
     }
 
     const selectedProblem = targetCheckpoint.problems[this.selectedSlotIndex];
-    this.answerLabel.textContent = "Target next safe lane";
     this.questionText.textContent = `${selectedProblem.problem.expression} = ?`;
-    this.answerFeedback.textContent = `Year ${targetCheckpoint.yearLevel.slice(-1)}. Arrows choose, Enter answers.`;
+    this.answerFeedback.textContent = "";
   }
 
   private updateAnswerDisplay(): void {
-    this.answerDisplay.textContent = this.answerText || "...";
+    this.answerDisplay.textContent = this.answerText;
     this.answerDisplay.toggleAttribute("data-empty", this.answerText.length === 0);
   }
 }
@@ -630,11 +651,17 @@ function getLanePlan(index: number): LanePlan {
         : ROAD_GROUP_SEQUENCE[(section - 1) % ROAD_GROUP_SEQUENCE.length];
 
     if (index === safeIndex) {
-      return { kind: "grass", section, incomingRoadCount, outgoingRoadCount };
+      return { kind: "grass", section, incomingRoadCount, outgoingRoadCount, roadOffset: -1 };
     }
 
     if (index > safeIndex && index <= safeIndex + outgoingRoadCount) {
-      return { kind: "road", section, incomingRoadCount, outgoingRoadCount };
+      return {
+        kind: "road",
+        section,
+        incomingRoadCount,
+        outgoingRoadCount,
+        roadOffset: index - safeIndex - 1,
+      };
     }
 
     safeIndex += outgoingRoadCount + 1;

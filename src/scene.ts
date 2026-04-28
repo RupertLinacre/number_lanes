@@ -92,7 +92,12 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  createLane(index: number, kind: LaneKind, safeState: SafeLaneState = "unlocked"): LaneVisual {
+  createLane(
+    index: number,
+    kind: LaneKind,
+    safeState: SafeLaneState = "unlocked",
+    hasRoadMarkAfter = false,
+  ): LaneVisual {
     const lane = new THREE.Group();
     const z = laneIndexToZ(index);
     const isRoad = kind === "road";
@@ -106,7 +111,9 @@ export class GameScene {
     lane.add(base);
 
     if (isRoad) {
-      this.addRoadMarks(lane, z);
+      if (hasRoadMarkAfter) {
+        this.addRoadMarks(lane, z - LANE_DEPTH / 2);
+      }
     } else {
       this.addGrassDetails(lane, index, z);
     }

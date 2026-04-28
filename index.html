@@ -19,15 +19,17 @@
         </div>
       </div>
       <section id="answer-panel" aria-live="polite">
-        <div id="answer-label">Target next lane</div>
         <div id="question-text">Ready?</div>
         <div class="live-answer">
           <span id="answer-prefix">Answer</span>
-          <div id="answer-input" role="textbox" aria-label="Live math answer">...</div>
+          <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
         </div>
-        <div id="answer-feedback">Use arrows, type, Enter.</div>
+        <div id="answer-feedback"></div>
         <button id="restart-button" type="button" hidden>Restart</button>
       </section>
+      <div id="gameplay-instructions">
+        Use left and right arrow to select question. Press return or space to hop
+      </div>
       <canvas id="game-canvas" tabindex="0" aria-label="3D road crossing game"></canvas>
     </div>
     <script type="module" src="/src/main.ts"></script>
