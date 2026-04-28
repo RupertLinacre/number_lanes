@@ -14,6 +14,10 @@ export class InputController {
   private readonly pendingCharacters: string[] = [];
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if (isFormControl(event.target)) {
+      return;
+    }
+
     if (event.code === "Space" && !event.repeat) {
       event.preventDefault();
       this.pendingAdvance = true;
@@ -89,4 +93,11 @@ export class InputController {
 
 function isAnswerCharacter(key: string): boolean {
   return /^[0-9.-]$/.test(key);
+}
+
+function isFormControl(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+    || target instanceof HTMLButtonElement;
 }

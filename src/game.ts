@@ -41,7 +41,7 @@ interface Checkpoint {
   laneIndex: number;
   incomingRoadCount: number;
   outgoingRoadCount: number;
-  yearLevel: "year1" | "year2" | "year3" | "year4";
+  yearLevel: DifficultyLevel;
   problems: CheckpointProblem[];
   unlocked: boolean;
   visual: LaneVisual;
@@ -61,6 +61,16 @@ const CHECKPOINT_PROBLEM_COUNT = 3;
 const ROAD_GROUP_SEQUENCE = [1, 2, 3, 4] as const;
 const PROBLEM_SLOTS = [-6, 0, 6];
 const START_SLOT_INDEX = 1;
+const DIFFICULTY_LEVELS = ["reception", "year1", "year2", "year3", "year4", "year5", "year6"] as const;
+const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
+  reception: "Reception",
+  year1: "Y1",
+  year2: "Y2",
+  year3: "Y3",
+  year4: "Y4",
+  year5: "Y5",
+  year6: "Y6",
+};
 const VEHICLE_STYLES: VehicleStyle[] = [
   { body: 0xff6d3a, cabin: 0xffffff, length: 2.6 },
   { body: 0x00a8d8, cabin: 0xf0ffff, length: 2.35 },
@@ -69,6 +79,8 @@ const VEHICLE_STYLES: VehicleStyle[] = [
   { body: 0x8f65ff, cabin: 0xfffcff, length: 2.45 },
 ];
 
+type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
+
 export class Game {
   private readonly player: THREE.Group;
   private readonly targetHighlight: THREE.Group;
@@ -76,6 +88,7 @@ export class Game {
   private readonly clock = new THREE.Clock();
   private readonly scoreElement: HTMLElement;
   private readonly bestElement: HTMLElement;
+  private readonly difficultyStatsElement: HTMLElement;
   private readonly questionText: HTMLElement;
   private readonly answerDisplay: HTMLElement;
   private readonly answerFeedback: HTMLElement;
@@ -94,7 +107,13 @@ export class Game {
   private bestLaneReached = Number(localStorage.getItem("hop-lane-best") ?? 0);
   private readonly shouldSaveProgress = readSaveProgressSetting();
   private readonly shouldRequireAllQuestions = readRequireAllQuestionsSetting();
+  private readonly maxWrongAnswerLives = readWrongAnswerLivesSetting();
+  private readonly maxTrafficLives = readTrafficLivesSetting();
+  private readonly baseDifficulty = readBaseDifficultySetting();
+  private readonly questionsAnsweredByDifficulty = createQuestionStats();
   private readonly savedUnlockedCheckpoints = new Set<number>([START_LANE]);
+  private wrongAnswerLivesRemaining = this.maxWrongAnswerLives;
+  private trafficLivesRemaining = this.maxTrafficLives;
   private animationId = 0;
 
   constructor(
@@ -103,11 +122,12 @@ export class Game {
   ) {
     this.scoreElement = requireElement("#score");
     this.bestElement = requireElement("#best");
+    this.difficultyStatsElement = requireElement("#difficulty-stats");
     this.questionText = requireElement("#question-text");
     this.answerDisplay = requireElement("#answer-input");
     this.answerFeedback = requireElement("#answer-feedback");
     this.restartButton = requireElement("#restart-button");
-    this.restartButton.addEventListener("click", () => this.resetRound());
+    this.restartButton.addEventListener("click", () => this.restartGame());
 
     this.player = this.gameScene.createPlayer();
     this.targetHighlight = this.gameScene.createQuestionHighlight();
@@ -211,7 +231,7 @@ export class Game {
       laneIndex: index,
       incomingRoadCount,
       outgoingRoadCount,
-      yearLevel: roadCountToYearLevel(incomingRoadCount),
+      yearLevel: this.roadCountToDifficulty(incomingRoadCount),
       problems: this.generateProblems(incomingRoadCount),
       unlocked: this.isCheckpointUnlocked(index),
       visual,
@@ -222,11 +242,21 @@ export class Game {
   }
 
   private generateProblems(roadCount: number): CheckpointProblem[] {
-    const yearLevel = roadCountToYearLevel(roadCount);
+    const yearLevel = this.roadCountToDifficulty(roadCount);
     return Array.from({ length: CHECKPOINT_PROBLEM_COUNT }, () => ({
       problem: generateProblem({ yearLevel }),
       solved: false,
     }));
+  }
+
+  private roadCountToDifficulty(roadCount: number): DifficultyLevel {
+    const baseIndex = DIFFICULTY_LEVELS.indexOf(this.baseDifficulty);
+    const difficultyIndex = THREE.MathUtils.clamp(
+      baseIndex + roadCount - 1,
+      0,
+      DIFFICULTY_LEVELS.length - 1,
+    );
+    return DIFFICULTY_LEVELS[difficultyIndex];
   }
 
   private refreshCheckpointText(checkpoint: Checkpoint): void {
@@ -285,7 +315,7 @@ export class Game {
     const events = this.input.consumeAnswerInput();
     if (this.gameOver) {
       if (events.submit) {
-        this.resetRound();
+        this.restartGame();
       }
       return;
     }
@@ -454,10 +484,7 @@ export class Game {
       const zOverlap = Math.abs(vehicleZ - playerZ) < LANE_DEPTH * 0.42;
 
       if (xOverlap && zOverlap) {
-        this.endRound(
-          "Squashed by traffic",
-          "You were hit by a car. Press Enter or click Restart to try again.",
-        );
+        this.handleTrafficHit();
         return;
       }
     }
@@ -497,14 +524,12 @@ export class Game {
 
     if (!checkAnswer(selectedProblem.problem, answer)) {
       const correctAnswer = selectedProblem.problem.formattedAnswer || String(selectedProblem.problem.answer);
-      this.endRound(
-        "Wrong answer",
-        `${selectedProblem.problem.expression} = ${correctAnswer}. Press Enter or click Restart to try again.`,
-      );
+      this.handleWrongAnswer(`${selectedProblem.problem.expression} = ${correctAnswer}`);
       return;
     }
 
     selectedProblem.solved = true;
+    this.questionsAnsweredByDifficulty[selectedProblem.problem.yearLevel as DifficultyLevel] += 1;
     targetCheckpoint.unlocked =
       !this.shouldRequireAllQuestions || targetCheckpoint.problems.every((entry) => entry.solved);
     if (targetCheckpoint.unlocked) {
@@ -516,6 +541,7 @@ export class Game {
     this.answerText = "";
     this.refreshCheckpointText(targetCheckpoint);
     this.updateQuestionPanel();
+    this.updateDifficultyStats();
     this.updateAnswerDisplay();
   }
 
@@ -545,6 +571,38 @@ export class Game {
     this.resetCheckpoints();
     this.updateHud();
     this.answerFeedback.textContent = feedback;
+  }
+
+  private restartGame(): void {
+    this.wrongAnswerLivesRemaining = this.maxWrongAnswerLives;
+    this.trafficLivesRemaining = this.maxTrafficLives;
+    this.resetRound();
+  }
+
+  private handleWrongAnswer(detail: string): void {
+    this.wrongAnswerLivesRemaining -= 1;
+    if (this.wrongAnswerLivesRemaining <= 0) {
+      this.endRound(
+        "Wrong answer",
+        `${detail}. Press Enter or click Restart to try again.`,
+      );
+      return;
+    }
+
+    this.resetRound();
+  }
+
+  private handleTrafficHit(): void {
+    this.trafficLivesRemaining -= 1;
+    if (this.trafficLivesRemaining <= 0) {
+      this.endRound(
+        "Squashed by traffic",
+        "You were hit by a car. Press Enter or click Restart to try again.",
+      );
+      return;
+    }
+
+    this.resetRound();
   }
 
   private endRound(title: string, detail: string): void {
@@ -639,8 +697,27 @@ export class Game {
   private updateHud(): void {
     this.scoreElement.textContent = String(this.maxLaneReached);
     this.bestElement.textContent = String(this.bestLaneReached);
+    this.updateDifficultyStats();
     this.updateQuestionPanel();
     this.updateAnswerDisplay();
+  }
+
+  private updateDifficultyStats(): void {
+    const total = DIFFICULTY_LEVELS.reduce(
+      (sum, level) => sum + this.questionsAnsweredByDifficulty[level],
+      0,
+    );
+    const breakdown = DIFFICULTY_LEVELS
+      .filter((level) => this.questionsAnsweredByDifficulty[level] > 0)
+      .map((level) => `${DIFFICULTY_LABELS[level]} ${this.questionsAnsweredByDifficulty[level]}`)
+      .join("\n");
+
+    this.difficultyStatsElement.textContent = `${total} correct`;
+    if (breakdown) {
+      this.difficultyStatsElement.dataset.breakdown = breakdown;
+    } else {
+      delete this.difficultyStatsElement.dataset.breakdown;
+    }
   }
 
   private updateQuestionPanel(): void {
@@ -709,19 +786,6 @@ function getLanePlan(index: number): LanePlan {
   }
 }
 
-function roadCountToYearLevel(roadCount: number): Checkpoint["yearLevel"] {
-  if (roadCount === 1) {
-    return "year1";
-  }
-  if (roadCount === 2) {
-    return "year2";
-  }
-  if (roadCount === 3) {
-    return "year3";
-  }
-  return "year4";
-}
-
 function requireElement<T extends HTMLElement = HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) {
@@ -743,21 +807,70 @@ function readRequireAllQuestionsSetting(): boolean {
   ]);
 }
 
-function readBooleanQuerySetting(names: string[]): boolean {
-  const parameters = new URLSearchParams(window.location.search);
-  let value: string | null = null;
-  for (const name of names) {
-    value = parameters.get(name);
-    if (value !== null) {
-      break;
-    }
-  }
+function readWrongAnswerLivesSetting(): number {
+  return readPositiveIntegerQuerySetting([
+    "wrongAnswerLives",
+    "wrong_answer_lives",
+    "answerLives",
+    "answer_lives",
+    "questionLives",
+    "question_lives",
+  ]);
+}
 
+function readTrafficLivesSetting(): number {
+  return readPositiveIntegerQuerySetting([
+    "trafficLives",
+    "traffic_lives",
+    "runOverLives",
+    "run_over_lives",
+    "collisionLives",
+    "collision_lives",
+  ]);
+}
+
+function readBaseDifficultySetting(): DifficultyLevel {
+  const value = readQuerySetting(["baseDifficulty", "base_difficulty", "baseYear", "base_year"]);
+  return isDifficultyLevel(value) ? value : "year2";
+}
+
+function createQuestionStats(): Record<DifficultyLevel, number> {
+  return Object.fromEntries(DIFFICULTY_LEVELS.map((level) => [level, 0])) as Record<DifficultyLevel, number>;
+}
+
+function readBooleanQuerySetting(names: string[]): boolean {
+  const value = readQuerySetting(names);
   if (value === null) {
     return false;
   }
 
   return !["0", "false", "off", "no"].includes(value.toLowerCase());
+}
+
+function readPositiveIntegerQuerySetting(names: string[]): number {
+  const value = readQuerySetting(names);
+  if (value === null) {
+    return 1;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : 1;
+}
+
+function readQuerySetting(names: string[]): string | null {
+  const parameters = new URLSearchParams(window.location.search);
+  for (const name of names) {
+    const value = parameters.get(name);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function isDifficultyLevel(value: string | null): value is DifficultyLevel {
+  return DIFFICULTY_LEVELS.includes(value as DifficultyLevel);
 }
 
 function easeOutCubic(value: number): number {

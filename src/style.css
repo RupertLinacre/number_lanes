@@ -57,6 +57,41 @@ body {
   box-shadow: 0 8px 18px rgba(23, 32, 42, 0.14);
 }
 
+#hud #difficulty-stats {
+  position: relative;
+  width: max-content;
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.64rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #52616f;
+}
+
+#difficulty-stats::after {
+  content: attr(data-breakdown);
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  display: none;
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(23, 32, 42, 0.9);
+  color: #ffffff;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  white-space: pre-line;
+}
+
+#difficulty-stats[data-breakdown]:hover::after {
+  display: block;
+}
+
 .label {
   font-size: 0.72rem;
   font-weight: 800;
@@ -181,6 +216,71 @@ body {
   pointer-events: none;
 }
 
+#settings-panel {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 3;
+  color: #17202a;
+}
+
+#settings-panel summary {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid rgba(23, 32, 42, 0.1);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 5px 12px rgba(23, 32, 42, 0.12);
+  cursor: pointer;
+  font-size: 0.96rem;
+  line-height: 1;
+  list-style: none;
+}
+
+#settings-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+#settings-form {
+  position: absolute;
+  left: 0;
+  bottom: 38px;
+  display: grid;
+  width: 190px;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid rgba(23, 32, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 18px rgba(23, 32, 42, 0.16);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+#settings-form label {
+  display: grid;
+  gap: 4px;
+}
+
+#settings-form label:has(input[type="checkbox"]) {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+#settings-form input[type="number"],
+#settings-form select {
+  width: 100%;
+  min-height: 30px;
+  border: 2px solid rgba(23, 32, 42, 0.16);
+  border-radius: 6px;
+  padding: 4px 7px;
+  color: #17202a;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.92);
+}
+
 @media (max-width: 560px) {
   #hud {
     top: 10px;
@@ -195,6 +295,10 @@ body {
 
   #hud strong {
     font-size: 1.25rem;
+  }
+
+  #hud #difficulty-stats {
+    font-size: 0.58rem;
   }
 
   #answer-panel {
@@ -220,5 +324,10 @@ body {
     bottom: 92px;
     max-width: 170px;
     font-size: 0.66rem;
+  }
+
+  #settings-panel {
+    left: 10px;
+    bottom: 10px;
   }
 }
