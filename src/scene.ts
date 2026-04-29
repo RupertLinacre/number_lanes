@@ -126,7 +126,7 @@ export class GameScene {
     surface.material.color.setHex(safeLaneColor(state));
   }
 
-  createMathText(expression: string, unlocked: boolean): THREE.Mesh {
+  createMathText(expression: string, unlocked: boolean, solved = false): THREE.Mesh {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 160;
@@ -139,10 +139,10 @@ export class GameScene {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.font = "900 56px Inter, Arial, sans-serif";
-    context.lineWidth = 10;
-    context.strokeStyle = unlocked ? "rgba(255,255,255,0.9)" : "rgba(255,248,188,0.95)";
-    context.fillStyle = "#17202a";
+    context.font = "900 66px Inter, Arial, sans-serif";
+    context.lineWidth = 12;
+    context.strokeStyle = unlocked ? "rgba(255,255,255,0.92)" : "rgba(255,248,188,0.95)";
+    context.fillStyle = solved ? "#079447" : "#17202a";
     context.strokeText(expression, canvas.width / 2, canvas.height / 2);
     context.fillText(expression, canvas.width / 2, canvas.height / 2);
 
@@ -157,7 +157,7 @@ export class GameScene {
       polygonOffset: true,
       polygonOffsetFactor: -1,
     });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 1.1), material);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4.35, 1.22), material);
     mesh.rotation.x = -Math.PI / 2;
     mesh.renderOrder = 2;
     return mesh;
@@ -187,6 +187,29 @@ export class GameScene {
 
     group.add(plate, pointer);
     group.visible = false;
+    return group;
+  }
+
+  createSuccessTick(): THREE.Group {
+    const group = new THREE.Group();
+    const material = getMaterial(0x11c95f);
+    const shortStroke = new THREE.Mesh(getGeometry(0.34, 0.09, 0.09), material);
+    const longStroke = new THREE.Mesh(getGeometry(0.58, 0.09, 0.09), material);
+
+    shortStroke.position.set(-0.13, -0.06, 0);
+    shortStroke.rotation.z = -Math.PI / 4;
+    longStroke.position.set(0.15, 0.06, 0);
+    longStroke.rotation.z = Math.PI / 4;
+
+    group.add(shortStroke, longStroke);
+    group.visible = false;
+    group.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
     return group;
   }
 

@@ -18,6 +18,10 @@
           <span class="label">Best</span>
           <strong id="best">0</strong>
         </div>
+        <div id="lives-display" hidden>
+          <span class="label">Lives</span>
+          <strong id="lives">1</strong>
+        </div>
       </div>
       <section id="answer-panel" aria-live="polite">
         <div id="question-text">Ready?</div>
@@ -43,12 +47,8 @@
             Answer all three
           </label>
           <label>
-            Wrong answer lives
-            <input id="setting-wrong-lives" type="number" min="1" step="1" />
-          </label>
-          <label>
-            Run-over lives
-            <input id="setting-traffic-lives" type="number" min="1" step="1" />
+            Lives
+            <input id="setting-lives" type="number" min="1" step="1" />
           </label>
           <label>
             Base difficulty

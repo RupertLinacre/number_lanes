@@ -26,8 +26,7 @@ game.start();
 function setupSettingsControls(): void {
   const saveProgress = requireElement<HTMLInputElement>("#setting-save-progress");
   const requireAll = requireElement<HTMLInputElement>("#setting-require-all");
-  const wrongLives = requireElement<HTMLInputElement>("#setting-wrong-lives");
-  const trafficLives = requireElement<HTMLInputElement>("#setting-traffic-lives");
+  const lives = requireElement<HTMLInputElement>("#setting-lives");
   const baseDifficulty = requireElement<HTMLSelectElement>("#setting-base-difficulty");
 
   saveProgress.checked = readBooleanQuerySetting(["saveProgress", "save_progress"]);
@@ -37,15 +36,16 @@ function setupSettingsControls(): void {
     "allQuestions",
     "all_questions",
   ]);
-  wrongLives.value = String(readPositiveIntegerQuerySetting([
+  lives.value = String(readPositiveIntegerQuerySetting([
+    "lives",
+    "numLives",
+    "num_lives",
     "wrongAnswerLives",
     "wrong_answer_lives",
     "answerLives",
     "answer_lives",
     "questionLives",
     "question_lives",
-  ]));
-  trafficLives.value = String(readPositiveIntegerQuerySetting([
     "trafficLives",
     "traffic_lives",
     "runOverLives",
@@ -61,8 +61,7 @@ function setupSettingsControls(): void {
 
   saveProgress.addEventListener("change", () => updateBooleanSetting("save_progress", saveProgress.checked));
   requireAll.addEventListener("change", () => updateBooleanSetting("require_all_questions", requireAll.checked));
-  wrongLives.addEventListener("change", () => updateNumberSetting("wrong_answer_lives", wrongLives.value));
-  trafficLives.addEventListener("change", () => updateNumberSetting("run_over_lives", trafficLives.value));
+  lives.addEventListener("change", () => updateNumberSetting("lives", lives.value));
   baseDifficulty.addEventListener("change", () => updateEnumSetting("base_difficulty", baseDifficulty.value, "year2"));
 }
 
@@ -89,8 +88,23 @@ function updateUrlSetting(name: string, value: string | null): void {
   const canonicalGroups = [
     ["saveProgress", "save_progress"],
     ["requireAllQuestions", "require_all_questions", "allQuestions", "all_questions"],
-    ["wrongAnswerLives", "wrong_answer_lives", "answerLives", "answer_lives", "questionLives", "question_lives"],
-    ["trafficLives", "traffic_lives", "runOverLives", "run_over_lives", "collisionLives", "collision_lives"],
+    [
+      "lives",
+      "numLives",
+      "num_lives",
+      "wrongAnswerLives",
+      "wrong_answer_lives",
+      "answerLives",
+      "answer_lives",
+      "questionLives",
+      "question_lives",
+      "trafficLives",
+      "traffic_lives",
+      "runOverLives",
+      "run_over_lives",
+      "collisionLives",
+      "collision_lives",
+    ],
     ["baseDifficulty", "base_difficulty", "baseYear", "base_year"],
   ];
   const group = canonicalGroups.find((entries) => entries.includes(name)) ?? [name];
