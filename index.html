@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/number_lanes/favicon.svg" type="image/svg+xml" />
     <title>Hop Lane</title>
-    <script type="module" crossorigin src="/number_lanes/assets/index-CgKTty50.js"></script>
-    <link rel="stylesheet" crossorigin href="/number_lanes/assets/index-CwOXLtue.css">
+    <script type="module" crossorigin src="/number_lanes/assets/index-BUtDMTZe.js"></script>
+    <link rel="stylesheet" crossorigin href="/number_lanes/assets/index-rXPRFOcZ.css">
   </head>
   <body>
     <div id="app">
@@ -19,6 +19,10 @@
         <div>
           <span class="label">Best</span>
           <strong id="best">0</strong>
+        </div>
+        <div id="lives-display" hidden>
+          <span class="label">Lives</span>
+          <strong id="lives">1</strong>
         </div>
       </div>
       <section id="answer-panel" aria-live="polite">
@@ -45,12 +49,8 @@
             Answer all three
           </label>
           <label>
-            Wrong answer lives
-            <input id="setting-wrong-lives" type="number" min="1" step="1" />
-          </label>
-          <label>
-            Run-over lives
-            <input id="setting-traffic-lives" type="number" min="1" step="1" />
+            Lives
+            <input id="setting-lives" type="number" min="1" step="1" />
           </label>
           <label>
             Base difficulty
