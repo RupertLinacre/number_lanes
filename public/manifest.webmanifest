@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "/number_lanes/next/",
   "name": "Hop Lane",
   "short_name": "Hop Lane",
   "description": "Hop across roads, railways and canals while solving maths questions.",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/number_lanes/next/",
+  "scope": "/number_lanes/next/",
   "display": "standalone",
   "background_color": "#91d6ff",
   "theme_color": "#266e72",

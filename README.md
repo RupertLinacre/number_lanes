@@ -15,8 +15,7 @@ npm run preview
 This `next` branch builds for `/number_lanes/next/`. Run `npm run dev` and
 open the URL printed by Vite to play locally. `npm run deploy` publishes this
 build to the `next` directory of the `gh-pages` branch. The main branch's
-deployment command replaces the contents of that branch, so a production
-deployment may remove the preview until it is deployed again.
+deployment command preserves the preview.
 
 ## Controls
 
@@ -35,3 +34,7 @@ You can answer the next unanswered visible question in advance, including while 
 Sound effects can be turned on or off in settings. Browsers enable audio after the first keyboard or pointer interaction.
 
 On supported mobile browsers, install Hop Lane from the browser's menu to open it from the home screen in its own window. The game requires an internet connection.
+
+The production manifest ID is `/number_lanes/`; the preview has its own ID,
+`/number_lanes/next/`. These IDs resolve from the origin, not from the manifest
+file, so keep each one stable. The build checks the ID, launch URL, scope and icons.
