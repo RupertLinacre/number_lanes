@@ -33,3 +33,7 @@ You can answer the next unanswered visible question in advance, including while 
 Sound effects can be turned on or off in settings. Browsers enable audio after the first keyboard or pointer interaction.
 
 On supported mobile browsers, install Hop Lane from the browser's menu to open it from the home screen in its own window. The game requires an internet connection.
+
+The production manifest ID is `/number_lanes/`; the preview has its own ID,
+`/number_lanes/next/`. These IDs resolve from the origin, not from the manifest
+file, so keep each one stable. The build checks the ID, launch URL, scope and icons.

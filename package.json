@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/check-pwa.mjs",
     "deploy": "npm run build && gh-pages -d dist --add",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
