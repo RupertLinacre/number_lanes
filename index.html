@@ -3,10 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#266e72" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hop Lane" />
+    <link rel="manifest" href="/number_lanes/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/number_lanes/icons/icon-192.png" />
     <link rel="icon" href="/number_lanes/favicon.svg" type="image/svg+xml" />
     <title>Hop Lane</title>
-    <script type="module" crossorigin src="/number_lanes/assets/index-BUtDMTZe.js"></script>
-    <link rel="stylesheet" crossorigin href="/number_lanes/assets/index-rXPRFOcZ.css">
+    <script type="module" crossorigin src="/number_lanes/assets/index-CxvidWbC.js"></script>
+    <link rel="stylesheet" crossorigin href="/number_lanes/assets/index-BaRgfydH.css">
   </head>
   <body>
     <div id="app">
@@ -14,7 +19,6 @@
         <div>
           <span class="label">Score</span>
           <strong id="score">0</strong>
-          <div id="difficulty-stats" aria-label="Correct answers total"></div>
         </div>
         <div>
           <span class="label">Best</span>
@@ -24,29 +28,50 @@
           <span class="label">Lives</span>
           <strong id="lives">1</strong>
         </div>
+        <div id="answers-display">
+          <span class="label">Answers</span>
+          <strong id="difficulty-stats" aria-label="Correct answers this session">0</strong>
+        </div>
       </div>
       <section id="answer-panel" aria-live="polite">
-        <div id="question-text">Ready?</div>
-        <div class="live-answer">
-          <span id="answer-prefix">Answer</span>
-          <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
+        <div class="question-row">
+          <div id="question-text">Ready?</div>
+          <div class="live-answer">
+            <span id="answer-prefix">Answer</span>
+            <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
+            <span class="answer-cross" aria-hidden="true">×</span>
+          </div>
+          <button id="clear-button" type="button" aria-label="Clear answer">Clear</button>
         </div>
         <div id="answer-feedback"></div>
+        <div id="result-answers" hidden></div>
+        <button id="skip-button" type="button" hidden>Skip</button>
         <button id="restart-button" type="button" hidden>Restart</button>
+        <div id="touch-controls">
+          <div id="number-pad" role="group" aria-label="Answer keypad">
+            <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+            <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+            <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+            <button type="button" data-key="-" aria-label="Minus">−</button><button type="button" data-key="0">0</button><button type="button" data-key="." aria-label="Decimal point">.</button>
+            <button type="button" data-key="back" aria-label="Delete last digit">⌫</button><button type="button" data-key="submit" aria-label="Check answer">✓</button><button type="button" data-key="hop" class="hop-key" aria-label="Hop forward">Hop ↑</button>
+          </div>
+        </div>
       </section>
-      <div id="gameplay-instructions">
-        Use left and right arrow to select question. Press return or space to hop
-      </div>
+      <button id="fullscreen-button" type="button" aria-label="Enter fullscreen" title="Enter fullscreen" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+        </svg>
+      </button>
       <details id="settings-panel">
         <summary aria-label="Game settings">⚙</summary>
         <form id="settings-form">
           <label>
-            <input id="setting-save-progress" type="checkbox" />
-            Save progress
+            <input id="setting-sound" type="checkbox" />
+            Sound effects
           </label>
           <label>
-            <input id="setting-require-all" type="checkbox" />
-            Answer all three
+            <input id="setting-allow-skips" type="checkbox" />
+            Allow question swaps
           </label>
           <label>
             Lives
