@@ -261,22 +261,6 @@ body {
   display: none;
 }
 
-#gameplay-instructions {
-  position: absolute;
-  right: 14px;
-  bottom: 12px;
-  z-index: 2;
-  max-width: 220px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.5);
-  color: rgba(23, 32, 42, 0.74);
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.25;
-  pointer-events: none;
-}
-
 #settings-panel {
   position: absolute;
   left: 12px;
@@ -380,13 +364,6 @@ body {
     min-height: 38px;
   }
 
-  #gameplay-instructions {
-    right: 10px;
-    bottom: 92px;
-    max-width: 170px;
-    font-size: 0.66rem;
-  }
-
   #settings-panel {
     left: 10px;
     bottom: 10px;
@@ -398,7 +375,7 @@ body {
 #skip-button[hidden] { display: none; }
 
 /* Compact desktop controls; touch devices get a dedicated control deck below. */
-#touch-controls { display: none; }
+#touch-controls, #fullscreen-button { display: none; }
 #hud #difficulty-stats {
   width: auto;
   margin: 0;
@@ -515,7 +492,6 @@ body {
   #number-pad button[data-key="submit"] { background: #dceccf; color: #326747; }
   #number-pad button.hop-key { background: #266e72; border-color: #266e72; color: white; font-size: 1rem; }
   #number-pad button.hop-key:active { background: #19565a; }
-  #gameplay-instructions { display: none; }
   #settings-panel {
     left: auto;
     right: max(8px, env(safe-area-inset-right));
@@ -523,6 +499,26 @@ body {
     top: max(8px, env(safe-area-inset-top));
   }
   #settings-panel summary { width: 40px; height: 40px; background: rgba(255, 255, 250, .92); }
+  #fullscreen-button:not([hidden]) {
+    position: absolute;
+    z-index: 3;
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(8px, env(safe-area-inset-right)) + 46px);
+    display: grid;
+    width: 40px;
+    height: 40px;
+    padding: 10px;
+    place-items: center;
+    border: 2px solid rgba(23, 32, 42, .1);
+    border-radius: 50%;
+    background: rgba(255, 255, 250, .92);
+    box-shadow: 0 5px 12px rgba(23, 32, 42, .12);
+    color: #17202a;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  #fullscreen-button svg { width: 100%; height: 100%; }
+  #fullscreen-button:focus-visible { outline: 3px solid #2d6990; outline-offset: 2px; }
   #settings-form { left: auto; right: 0; bottom: auto; top: 46px; width: 210px; }
 }
 
@@ -543,6 +539,7 @@ body {
   #number-pad button { height: clamp(30px, 12dvh, 44px); }
   #question-text, #answer-input { font-size: 1.1rem; }
   #settings-panel { right: calc(max(250px, 38vw) + 8px); }
+  #fullscreen-button:not([hidden]) { right: calc(max(250px, 38vw) + 54px); }
   #hud { right: calc(max(250px, 38vw) + 54px); }
 }
 

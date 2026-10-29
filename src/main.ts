@@ -16,6 +16,7 @@ const sound = new GameSound();
 const game = new Game(gameScene, input, sound);
 
 setupSettingsControls();
+setupFullscreenControl();
 document.querySelector<HTMLButtonElement>("#clear-button")?.addEventListener("click", (event) => {
   input.pressTouchKey("clear");
   (event.currentTarget as HTMLButtonElement).blur();
@@ -38,6 +39,26 @@ window.addEventListener("beforeunload", () => {
 });
 
 game.start();
+
+function setupFullscreenControl(): void {
+  const button = requireElement<HTMLButtonElement>("#fullscreen-button");
+  if (!document.fullscreenEnabled || !document.documentElement.requestFullscreen) return;
+
+  button.hidden = false;
+  const updateLabel = (): void => {
+    const label = document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.setAttribute("aria-pressed", String(Boolean(document.fullscreenElement)));
+  };
+  button.addEventListener("click", () => {
+    const action = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    void action.catch(() => updateLabel());
+    button.blur();
+  });
+  document.addEventListener("fullscreenchange", updateLabel);
+  updateLabel();
+}
 
 function setupSettingsControls(): void {
   const soundSetting = requireElement<HTMLInputElement>("#setting-sound");

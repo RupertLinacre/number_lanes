@@ -50,9 +50,11 @@
           </div>
         </div>
       </section>
-      <div id="gameplay-instructions">
-        Type the answer. Press up or space to hop forward. Flashing red means a train is coming.
-      </div>
+      <button id="fullscreen-button" type="button" aria-label="Enter fullscreen" title="Enter fullscreen" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+        </svg>
+      </button>
       <details id="settings-panel">
         <summary aria-label="Game settings">⚙</summary>
         <form id="settings-form">
