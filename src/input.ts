@@ -7,7 +7,6 @@ export interface AnswerInputEvents {
 
 export class InputController {
   private pendingAdvance = 0;
-  private pendingBackward = false;
   private pendingSubmit = 0;
   private pendingClear = false;
   private pendingBackspaceCount = 0;
@@ -24,13 +23,7 @@ export class InputController {
       return;
     }
 
-    if (event.code === "ArrowDown" && !event.repeat) {
-      event.preventDefault();
-      this.pendingBackward = true;
-      return;
-    }
-
-    if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+    if (event.code === "ArrowLeft" || event.code === "ArrowRight" || event.code === "ArrowDown") {
       event.preventDefault();
       return;
     }
@@ -67,12 +60,6 @@ export class InputController {
     const shouldAdvance = this.pendingAdvance;
     this.pendingAdvance = 0;
     return shouldAdvance;
-  }
-
-  consumeBackward(): boolean {
-    const backward = this.pendingBackward;
-    this.pendingBackward = false;
-    return backward;
   }
 
   consumeAnswerInput(): AnswerInputEvents {

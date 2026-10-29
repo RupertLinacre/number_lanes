@@ -21,14 +21,13 @@ deployment may remove the preview until it is deployed again.
 ## Controls
 
 - `Space`, `Enter` or `Up`: hop forward one lane
-- `Down`: hop back one lane
 - Number keys: enter an answer; a correct answer is accepted immediately
 - `Backspace` / `Escape`: edit or clear the answer
 - Optionally enable question swaps in settings to replace a question with another at the same difficulty. Each game starts with one swap and earns another for every four correct answers.
 
 Each safe zone has one question to answer before crossing. The correct-answer total lasts for the browser-tab session, including across game restarts and reloads. Watch for flashing red signs at railway tracks: they warn of a fast approaching train. Collisions cost a life. Wrong answers can be edited and tried again without losing a life.
 
-On canal crossings, hop across stationary lily pads followed by a lane of moving canal boats. Landing in the water or riding off the edge costs a life.
+On canal crossings, hops onto stationary lily-pad lanes automatically land on the nearest pad, followed by a lane of moving canal boats. Landing in the water or riding off the edge costs a life.
 
 You can answer the next unanswered visible question in advance, including while crossing. Questions can be answered in order for as long as they remain visible.
 
