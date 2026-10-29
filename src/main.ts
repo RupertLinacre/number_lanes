@@ -25,10 +25,12 @@ game.start();
 
 function setupSettingsControls(): void {
   const saveProgress = requireElement<HTMLInputElement>("#setting-save-progress");
+  const allowSkips = requireElement<HTMLInputElement>("#setting-allow-skips");
   const lives = requireElement<HTMLInputElement>("#setting-lives");
   const baseDifficulty = requireElement<HTMLSelectElement>("#setting-base-difficulty");
 
   saveProgress.checked = readBooleanQuerySetting(["saveProgress", "save_progress"]);
+  allowSkips.checked = readBooleanQuerySetting(["allowSkips", "allow_skips"]);
   lives.value = String(readPositiveIntegerQuerySetting([
     "lives",
     "numLives",
@@ -53,6 +55,7 @@ function setupSettingsControls(): void {
   );
 
   saveProgress.addEventListener("change", () => updateBooleanSetting("save_progress", saveProgress.checked));
+  allowSkips.addEventListener("change", () => updateBooleanSetting("allow_skips", allowSkips.checked));
   lives.addEventListener("change", () => updateNumberSetting("lives", lives.value));
   baseDifficulty.addEventListener("change", () => updateEnumSetting("base_difficulty", baseDifficulty.value, "year3"));
 }
@@ -79,6 +82,7 @@ function updateUrlSetting(name: string, value: string | null): void {
   const url = new URL(window.location.href);
   const canonicalGroups = [
     ["saveProgress", "save_progress"],
+    ["allowSkips", "allow_skips"],
     ["requireAllQuestions", "require_all_questions", "allQuestions", "all_questions"],
     [
       "lives",

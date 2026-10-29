@@ -31,7 +31,7 @@
           <span class="answer-cross" aria-hidden="true">×</span>
         </div>
         <div id="answer-feedback"></div>
-        <button id="skip-button" type="button">Skip question (1)</button>
+        <button id="skip-button" type="button" hidden>New question (1)</button>
         <button id="restart-button" type="button" hidden>Restart</button>
       </section>
       <div id="gameplay-instructions">
@@ -43,6 +43,10 @@
           <label>
             <input id="setting-save-progress" type="checkbox" />
             Save progress
+          </label>
+          <label>
+            <input id="setting-allow-skips" type="checkbox" />
+            Allow question swaps
           </label>
           <label>
             Lives

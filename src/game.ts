@@ -115,6 +115,7 @@ export class Game {
   private maxLaneReached = 0;
   private bestLaneReached = Number(localStorage.getItem("hop-lane-best") ?? 0);
   private readonly shouldSaveProgress = readSaveProgressSetting();
+  private readonly allowSkips = readBooleanQuerySetting(["allowSkips", "allow_skips"]);
   private skips = 1;
   private answersThisGame = 0;
   private readonly skipButton: HTMLButtonElement;
@@ -657,12 +658,15 @@ export class Game {
 
   private skipQuestion(): void {
     const target = this.targetCheckpoint();
-    if (this.gameOver || this.roundPaused || !target || target.unlocked || this.skips < 1) return;
+    if (!this.allowSkips || this.gameOver || this.roundPaused || !target || target.unlocked || this.skips < 1) return;
     this.skips -= 1;
     this.answerEntry.classList.remove("incorrect");
-    target.unlocked = true;
-    this.saveUnlockedCheckpoint(target.laneIndex);
-    this.gameScene.setSafeLaneState(target.visual.surface, "unlocked");
+    const entry = target.problems[0];
+    let replacement = generateProblem({ yearLevel: target.yearLevel });
+    for (let attempt = 0; attempt < 20 && replacement.expression === entry.problem.expression; attempt += 1) {
+      replacement = generateProblem({ yearLevel: target.yearLevel });
+    }
+    entry.problem = replacement;
     this.answerText = "";
     this.refreshCheckpointText(target);
     this.updateHud();
@@ -670,7 +674,8 @@ export class Game {
 
   private updateSkipButton(): void {
     const target = this.targetCheckpoint();
-    this.skipButton.textContent = `Skip question (${this.skips})`;
+    this.skipButton.hidden = !this.allowSkips;
+    this.skipButton.textContent = `New question (${this.skips})`;
     this.skipButton.disabled = this.gameOver || this.roundPaused || !target || target.unlocked || this.skips === 0;
   }
 
