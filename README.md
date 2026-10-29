@@ -12,11 +12,9 @@ npm run build
 npm run preview
 ```
 
-This `next` branch builds for `/number_lanes/next/`. Run `npm run dev` and
-open the URL printed by Vite to play locally. `npm run deploy` publishes this
-build to the `next` directory of the `gh-pages` branch. The main branch's
-deployment command replaces the contents of that branch, so a production
-deployment may remove the preview until it is deployed again.
+This branch builds for `/number_lanes/`. Run `npm run dev` and open the URL
+printed by Vite to play locally. `npm run deploy` publishes the production
+build to the root of the `gh-pages` branch while preserving the `next` preview.
 
 ## Controls
 
