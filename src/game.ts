@@ -1,6 +1,7 @@
 import { checkAnswer, generateProblem, type MathProblem } from "maths-game-problem-generator";
 import * as THREE from "three";
 import { InputController } from "./input";
+import { GameSound } from "./sound";
 import {
   GameScene,
   LANE_DEPTH,
@@ -136,6 +137,7 @@ export class Game {
   constructor(
     private readonly gameScene: GameScene,
     private readonly input: InputController,
+    private readonly sound: GameSound,
   ) {
     this.scoreElement = requireElement("#score");
     this.bestElement = requireElement("#best");
@@ -492,6 +494,7 @@ export class Game {
     this.hopEndX = this.player.position.x;
     this.hopEndZ = laneIndexToZ(this.targetLane);
     this.hopProgress = 0;
+    this.sound.play("hop");
   }
 
   private updatePlayer(delta: number): void {
@@ -628,6 +631,7 @@ export class Game {
     }
 
     if (!checkAnswer(selectedProblem.problem, answer)) {
+      this.sound.play("wrong");
       this.answerEntry.classList.remove("incorrect");
       void this.answerEntry.offsetWidth;
       this.answerEntry.classList.add("incorrect");
@@ -637,6 +641,7 @@ export class Game {
 
     this.answerEntry.classList.remove("incorrect");
     selectedProblem.solved = true;
+    this.sound.play("correct");
     this.questionsAnsweredByDifficulty[selectedProblem.problem.yearLevel as DifficultyLevel] += 1;
     this.answersThisGame += 1;
     if (this.answersThisGame % 4 === 0) this.skips += 1;
@@ -660,6 +665,7 @@ export class Game {
     const target = this.targetCheckpoint();
     if (!this.allowSkips || this.gameOver || this.roundPaused || !target || target.unlocked || this.skips < 1) return;
     this.skips -= 1;
+    this.sound.play("swap");
     this.answerEntry.classList.remove("incorrect");
     const entry = target.problems[0];
     let replacement = generateProblem({ yearLevel: target.yearLevel });
@@ -793,6 +799,7 @@ export class Game {
   }
 
   private handleTrafficHit(): void {
+    this.sound.play("hit");
     this.livesRemaining -= 1;
     this.updateLivesDisplay();
     this.squashPlayer();
@@ -815,6 +822,7 @@ export class Game {
   }
 
   private handleWaterFall(): void {
+    this.sound.play("splash");
     this.queuedForwardHops = 0;
     this.livesRemaining -= 1;
     this.updateLivesDisplay();

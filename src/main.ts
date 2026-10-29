@@ -1,6 +1,7 @@
 import { Game } from "./game";
 import { InputController } from "./input";
 import { GameScene } from "./scene";
+import { GameSound } from "./sound";
 import "./style.css";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
@@ -11,19 +12,24 @@ if (!canvas) {
 
 const gameScene = new GameScene(canvas);
 const input = new InputController();
-const game = new Game(gameScene, input);
+const sound = new GameSound();
+const game = new Game(gameScene, input, sound);
 
 setupSettingsControls();
 
 window.addEventListener("resize", () => game.handleResize());
 window.addEventListener("beforeunload", () => {
   input.dispose();
+  sound.dispose();
   game.stop();
 });
 
 game.start();
 
 function setupSettingsControls(): void {
+  const soundSetting = requireElement<HTMLInputElement>("#setting-sound");
+  soundSetting.checked = sound.isEnabled;
+  soundSetting.addEventListener("change", () => sound.setEnabled(soundSetting.checked));
   const saveProgress = requireElement<HTMLInputElement>("#setting-save-progress");
   const allowSkips = requireElement<HTMLInputElement>("#setting-allow-skips");
   const lives = requireElement<HTMLInputElement>("#setting-lives");
