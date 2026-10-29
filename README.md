@@ -33,3 +33,5 @@ On canal crossings, hops onto stationary lily-pad lanes automatically land on th
 You can answer the next unanswered visible question in advance, including while crossing. Questions can be answered in order for as long as they remain visible.
 
 Sound effects can be turned on or off in settings. Browsers enable audio after the first keyboard or pointer interaction.
+
+On supported mobile browsers, install Hop Lane from the browser's menu to open it from the home screen in its own window. The game requires an internet connection.
