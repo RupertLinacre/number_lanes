@@ -25,17 +25,10 @@ game.start();
 
 function setupSettingsControls(): void {
   const saveProgress = requireElement<HTMLInputElement>("#setting-save-progress");
-  const requireAll = requireElement<HTMLInputElement>("#setting-require-all");
   const lives = requireElement<HTMLInputElement>("#setting-lives");
   const baseDifficulty = requireElement<HTMLSelectElement>("#setting-base-difficulty");
 
   saveProgress.checked = readBooleanQuerySetting(["saveProgress", "save_progress"]);
-  requireAll.checked = readBooleanQuerySetting([
-    "requireAllQuestions",
-    "require_all_questions",
-    "allQuestions",
-    "all_questions",
-  ]);
   lives.value = String(readPositiveIntegerQuerySetting([
     "lives",
     "numLives",
@@ -60,7 +53,6 @@ function setupSettingsControls(): void {
   );
 
   saveProgress.addEventListener("change", () => updateBooleanSetting("save_progress", saveProgress.checked));
-  requireAll.addEventListener("change", () => updateBooleanSetting("require_all_questions", requireAll.checked));
   lives.addEventListener("change", () => updateNumberSetting("lives", lives.value));
   baseDifficulty.addEventListener("change", () => updateEnumSetting("base_difficulty", baseDifficulty.value, "year2"));
 }

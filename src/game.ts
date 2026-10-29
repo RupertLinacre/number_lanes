@@ -19,6 +19,7 @@ interface Lane {
   speed: number;
   vehicles: Vehicle[];
   checkpoint?: Checkpoint;
+  train?: { time: number; initialTime: number; light: THREE.Mesh<THREE.BoxGeometry, THREE.MeshLambertMaterial> };
 }
 
 interface Vehicle {
@@ -29,6 +30,7 @@ interface Vehicle {
   x: number;
   direction: -1 | 1;
   speed: number;
+  platformHeight?: number;
 }
 
 interface CheckpointProblem {
@@ -58,7 +60,7 @@ interface LanePlan {
 
 const START_LANE = 0;
 const PLAYER_SIZE = 0.78;
-const CHECKPOINT_PROBLEM_COUNT = 3;
+const CHECKPOINT_PROBLEM_COUNT = 1;
 const ROAD_GROUP_SEQUENCE = [1, 2, 3, 4] as const;
 const PROBLEM_SLOTS = [-6, 0, 6];
 const START_SLOT_INDEX = 1;
@@ -103,6 +105,8 @@ export class Game {
   private hopProgress = 1;
   private hopStartX = PROBLEM_SLOTS[START_SLOT_INDEX];
   private hopStartZ = laneIndexToZ(START_LANE);
+  private hopStartY = 0;
+  private hopEndY = 0;
   private hopEndX = PROBLEM_SLOTS[START_SLOT_INDEX];
   private hopEndZ = laneIndexToZ(START_LANE);
   private answerText = "";
@@ -111,7 +115,9 @@ export class Game {
   private maxLaneReached = 0;
   private bestLaneReached = Number(localStorage.getItem("hop-lane-best") ?? 0);
   private readonly shouldSaveProgress = readSaveProgressSetting();
-  private readonly shouldRequireAllQuestions = readRequireAllQuestionsSetting();
+  private skips = 1;
+  private answersThisGame = 0;
+  private readonly skipButton: HTMLButtonElement;
   private readonly maxLives = readLivesSetting();
   private readonly baseDifficulty = readBaseDifficultySetting();
   private readonly questionsAnsweredByDifficulty = createQuestionStats();
@@ -120,7 +126,11 @@ export class Game {
   private pendingResultAction: (() => void) | undefined;
   private playerSquashed = false;
   private playerFlashTime = 0;
+  private drowningTime: number | undefined;
+  private readonly splash: THREE.Group;
   private animationId = 0;
+  private displayedTargetLane: number | undefined;
+  private queuedForwardHops = 0;
 
   constructor(
     private readonly gameScene: GameScene,
@@ -135,13 +145,22 @@ export class Game {
     this.answerEntry = requireElement(".live-answer");
     this.answerDisplay = requireElement("#answer-input");
     this.answerFeedback = requireElement("#answer-feedback");
+    this.skipButton = requireElement("#skip-button");
+    this.skipButton.addEventListener("click", () => { this.skipQuestion(); this.skipButton.blur(); });
     this.restartButton = requireElement("#restart-button");
     this.restartButton.addEventListener("click", () => this.handleResultButton());
 
     this.player = this.gameScene.createPlayer();
+    this.splash = this.gameScene.createSplash();
     this.targetHighlight = this.gameScene.createQuestionHighlight();
     this.gameScene.scene.add(this.player, this.targetHighlight);
 
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hop-lane-session-stats") ?? "{}");
+      for (const level of DIFFICULTY_LEVELS) {
+        if (Number.isInteger(saved[level]) && saved[level] >= 0) this.questionsAnsweredByDifficulty[level] = saved[level];
+      }
+    } catch { /* Start a fresh session if stored data is invalid. */ }
     this.buildInitialWorld();
     this.resetRound();
   }
@@ -163,20 +182,33 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), 0.05);
 
     this.handleAnswerInput();
-    this.moveSelection(this.input.consumeHorizontal());
-
-    if (this.input.consumeAdvance()) {
-      this.advancePlayer();
+    if (this.input.consumeBackward()) {
+      this.queuedForwardHops = 0;
+      this.advancePlayer(-1);
     }
+
+    const forwardPresses = this.input.consumeAdvance();
+    if (!this.gameOver && !this.roundPaused) this.queuedForwardHops += forwardPresses;
 
     this.updatePlayer(delta);
     this.updateVehicles(delta);
     this.checkCollisions();
+    if (!this.gameOver && !this.roundPaused && this.hopProgress >= 1 && this.queuedForwardHops > 0) {
+      this.queuedForwardHops -= 1;
+      this.advancePlayer();
+      if (this.hopProgress >= 1) this.queuedForwardHops = 0;
+    }
     this.ensureWorldAhead();
     this.updateSuccessTick(delta);
     this.updateSquashedPlayer(delta);
+    this.updateDrowning(delta);
     this.updateTargetHighlight();
     this.gameScene.updateCamera(this.player.position.z, delta);
+    const targetLane = this.targetCheckpoint()?.laneIndex;
+    if (!this.gameOver && !this.roundPaused && targetLane !== this.displayedTargetLane) {
+      this.updateQuestionPanel();
+      this.updateSkipButton();
+    }
     this.gameScene.render();
 
     this.animationId = requestAnimationFrame(this.tick);
@@ -203,7 +235,7 @@ export class Game {
       index,
       plan.kind,
       isCheckpoint && !isUnlockedCheckpoint ? "locked" : "unlocked",
-      plan.kind === "road" && plan.roadOffset < plan.outgoingRoadCount - 1,
+      plan.kind === "road" && plan.section % 4 !== 2 && plan.roadOffset < plan.outgoingRoadCount - 1,
     );
 
     const lane: Lane = {
@@ -226,7 +258,17 @@ export class Game {
     this.lanes.set(index, lane);
 
     if (plan.kind === "road") {
-      this.addVehicles(lane, plan.section);
+      if (plan.section % 4 === 2) {
+        lane.train = { time: plan.roadOffset * 2.5, initialTime: plan.roadOffset * 2.5, light: this.gameScene.addTrainTrack(visual.group, index) };
+        this.addTrain(lane);
+      } else if (plan.section % 4 === 1) {
+        this.addLorries(lane, plan.section);
+      } else {
+        this.addVehicles(lane, plan.section);
+      }
+    } else if (plan.kind === "water") {
+      if ((Math.floor(plan.section / 4) + plan.roadOffset) % 2 === 0) this.addLilyPads(lane);
+      else this.addCanalBoats(lane, plan.section);
     }
 
     return lane;
@@ -297,7 +339,7 @@ export class Game {
         ? `OK ${entry.problem.expression_short}`
         : entry.problem.expression_short;
       const mesh = this.gameScene.createMathText(displayText, checkpoint.unlocked || entry.solved, entry.solved);
-      mesh.position.set(PROBLEM_SLOTS[problemIndex], 0.035, z + 0.05);
+      mesh.position.set(0, 0.035, z + 0.05);
       checkpoint.visual.group.add(mesh);
       entry.mesh = mesh;
 
@@ -334,10 +376,52 @@ export class Game {
     }
   }
 
+  private addTrain(lane: Lane): void {
+    const mesh = this.gameScene.createExpressTrain();
+    mesh.position.set(-100, 0.02, laneIndexToZ(lane.index));
+    mesh.visible = false;
+    lane.vehicles.push({ mesh, laneIndex: lane.index, width: 9, initialX: -100, x: -100, direction: 1, speed: 13 * 4 / 3 });
+  }
+
+  private addLorries(lane: Lane, section: number): void {
+    const spacing = WORLD_HALF_WIDTH + 3.5;
+    for (let i = 0; i < 2; i += 1) {
+      const mesh = this.gameScene.createLorry(VEHICLE_STYLES[(section + lane.index + i) % VEHICLE_STYLES.length].body);
+      const x = -WORLD_HALF_WIDTH - 3.5 + i * spacing + ((lane.index * 1.7) % spacing);
+      mesh.position.set(x, 0.02, laneIndexToZ(lane.index));
+      mesh.rotation.y = lane.direction === 1 ? 0 : Math.PI;
+      lane.vehicles.push({ mesh, laneIndex: lane.index, width: 5.2, initialX: x, x, direction: lane.direction, speed: lane.speed * 0.8 });
+    }
+  }
+
+  private addCanalBoats(lane: Lane, section: number): void {
+    const spacing = (WORLD_HALF_WIDTH * 2 + 10) / 3;
+    for (let i = 0; i < 3; i += 1) {
+      const mesh = this.gameScene.createCanalBoat([0x295d71, 0x933b37, 0x31704e][(section + i) % 3]);
+      const x = -WORLD_HALF_WIDTH - 5 + i * spacing + ((lane.index * 1.7) % spacing);
+      mesh.position.set(x, 0, laneIndexToZ(lane.index));
+      mesh.rotation.y = lane.direction === 1 ? 0 : Math.PI;
+      lane.vehicles.push({ mesh, laneIndex: lane.index, width: 5.35, initialX: x, x, direction: lane.direction, speed: 1.8, platformHeight: 0.71 });
+    }
+  }
+
+  private addLilyPads(lane: Lane): void {
+    for (let x = -12; x <= 12; x += 4) {
+      const mesh = this.gameScene.createLilyPad((x + lane.index) % 3 === 0);
+      mesh.position.set(x, 0, laneIndexToZ(lane.index));
+      lane.vehicles.push({ mesh, laneIndex: lane.index, width: 1.8, initialX: x, x, direction: 1, speed: 0, platformHeight: 0.1 });
+    }
+  }
+
   private handleAnswerInput(): void {
     const events = this.input.consumeAnswerInput();
     if (this.gameOver || this.roundPaused) {
       return;
+    }
+
+    if (events.clear || events.backspaceCount > 0 || events.characters.length > 0) {
+      this.answerEntry.classList.remove("incorrect");
+      if (this.answerFeedback.textContent === "Not quite — try again.") this.answerFeedback.textContent = "";
     }
 
     if (events.clear) {
@@ -353,29 +437,17 @@ export class Game {
     }
 
     this.updateAnswerDisplay();
-
-    if (events.submit) {
-      if (this.shouldSubmitHop()) {
-        this.advancePlayer();
-        return;
-      }
-
+    const target = this.targetCheckpoint();
+    if (events.characters.length && target && !target.unlocked && this.answerText && checkAnswer(target.problems[0].problem, this.answerText)) {
       this.submitAnswer();
-    }
-  }
-
-  private shouldSubmitHop(): boolean {
-    if (this.gameOver || this.roundPaused || this.hopProgress < 1) {
-      return false;
+      this.queuedForwardHops += events.submit;
+      return;
     }
 
-    const currentCheckpoint = this.currentCheckpoint();
-    if (!currentCheckpoint) {
-      return true;
+    if (events.submit > 0) {
+      if (this.answerText.trim()) this.submitAnswer();
+      else this.queuedForwardHops += events.submit;
     }
-
-    const targetCheckpoint = currentCheckpoint ? this.nextCheckpointFrom(currentCheckpoint) : undefined;
-    return Boolean(targetCheckpoint?.unlocked);
   }
 
   private addAnswerCharacter(character: string): void {
@@ -394,43 +466,29 @@ export class Game {
     this.answerText += character;
   }
 
-  private moveSelection(direction: -1 | 0 | 1): void {
-    if (this.gameOver || this.roundPaused || direction === 0 || this.hopProgress < 1 || !this.currentCheckpoint()) {
-      return;
-    }
-
-    const nextIndex = THREE.MathUtils.clamp(
-      this.selectedSlotIndex + direction,
-      0,
-      PROBLEM_SLOTS.length - 1,
-    );
-
-    if (nextIndex === this.selectedSlotIndex) {
-      return;
-    }
-
-    this.selectedSlotIndex = nextIndex;
-    this.answerText = "";
-    this.updateAnswerDisplay();
-    this.updateQuestionPanel();
-  }
-
-  private advancePlayer(): void {
+  private advancePlayer(direction: -1 | 1 = 1): void {
     if (this.gameOver || this.roundPaused || this.hopProgress < 1) {
       return;
     }
 
     const currentCheckpoint = this.currentCheckpoint();
     const nextCheckpoint = currentCheckpoint ? this.nextCheckpointFrom(currentCheckpoint) : undefined;
-    if (currentCheckpoint && nextCheckpoint && !nextCheckpoint.unlocked) {
+    if (direction === 1 && currentCheckpoint && nextCheckpoint && !nextCheckpoint.unlocked) {
       this.answerFeedback.textContent = "Answer the highlighted question first.";
       return;
     }
 
-    this.targetLane = this.playerLane + 1;
+    if (direction === -1 && this.playerLane === START_LANE) return;
+    this.targetLane = this.playerLane + direction;
     this.hopStartX = this.player.position.x;
     this.hopStartZ = this.player.position.z;
-    this.hopEndX = PROBLEM_SLOTS[this.selectedSlotIndex];
+    this.hopStartY = this.player.position.y;
+    const destination = this.lanes.get(this.targetLane);
+    const platform = destination?.kind === "water"
+      ? destination.vehicles.find((vehicle) => Math.abs(vehicle.x - this.player.position.x) <= vehicle.width / 2)
+      : undefined;
+    this.hopEndY = platform?.platformHeight ?? 0;
+    this.hopEndX = this.player.position.x;
     this.hopEndZ = laneIndexToZ(this.targetLane);
     this.hopProgress = 0;
   }
@@ -440,30 +498,35 @@ export class Game {
       return;
     }
 
-    const selectedX = PROBLEM_SLOTS[this.selectedSlotIndex];
-
     if (this.hopProgress >= 1) {
-      if (this.currentCheckpoint()) {
-        this.player.position.x = THREE.MathUtils.lerp(this.player.position.x, selectedX, Math.min(1, delta * 9));
-      }
       return;
     }
 
-    this.hopProgress = Math.min(1, this.hopProgress + delta * 7.4);
-    const eased = easeOutCubic(this.hopProgress);
+    this.hopProgress = Math.min(1, this.hopProgress + delta * 4.56);
+    const eased = this.hopProgress * this.hopProgress * (3 - 2 * this.hopProgress);
+    const jump = Math.sin(this.hopProgress * Math.PI);
     this.player.position.x = THREE.MathUtils.lerp(this.hopStartX, this.hopEndX, eased);
     this.player.position.z = THREE.MathUtils.lerp(this.hopStartZ, this.hopEndZ, eased);
-    this.player.position.y = Math.sin(this.hopProgress * Math.PI) * 0.72;
-    this.player.rotation.x = Math.sin(this.hopProgress * Math.PI) * -0.12;
+    this.player.position.y = THREE.MathUtils.lerp(this.hopStartY, this.hopEndY, eased) + jump * 1.25;
+    this.player.rotation.x = jump * (this.targetLane > this.playerLane ? -0.18 : 0.18);
+    this.player.scale.set(1 - jump * 0.12, 1 + jump * 0.23, 1 - jump * 0.08);
+    for (const name of ["left-hind-leg", "right-hind-leg"]) {
+      const leg = this.player.getObjectByName(name);
+      if (leg) leg.rotation.x = jump * 0.65;
+    }
 
     if (this.hopProgress === 1) {
       this.playerLane = this.targetLane;
-      this.player.position.set(this.hopEndX, 0, laneIndexToZ(this.playerLane));
+      this.player.position.set(this.hopEndX, this.hopEndY, laneIndexToZ(this.playerLane));
       this.player.rotation.x = 0;
+      this.player.scale.set(1, 1, 1);
+      for (const name of ["left-hind-leg", "right-hind-leg"]) {
+        const leg = this.player.getObjectByName(name);
+        if (leg) leg.rotation.x = 0;
+      }
       this.maxLaneReached = Math.max(this.maxLaneReached, this.playerLane);
       this.bestLaneReached = Math.max(this.bestLaneReached, this.maxLaneReached);
       localStorage.setItem("hop-lane-best", String(this.bestLaneReached));
-      this.answerText = "";
       this.updateHud();
     }
   }
@@ -473,7 +536,20 @@ export class Game {
     const maxX = WORLD_HALF_WIDTH + 5;
 
     for (const lane of this.lanes.values()) {
+      if (lane.train) {
+        lane.train.time = (lane.train.time + delta) % 10;
+        const trainEnd = 2 + 3 / (4 / 3);
+        const active = lane.train.time >= 2 && lane.train.time < trainEnd;
+        lane.train.light.material.color.setHex(lane.train.time >= 0 && lane.train.time < trainEnd && Math.floor(lane.train.time * 4) % 2 === 0 ? 0xff2525 : 0x541515);
+        const train = lane.vehicles[0];
+        train.x = active ? -WORLD_HALF_WIDTH - 5 + (lane.train.time - 2) * train.speed : -100;
+        train.mesh.position.x = train.x;
+        train.mesh.visible = active;
+        continue;
+      }
       for (const vehicle of lane.vehicles) {
+        const carryingPlayer = lane.kind === "water" && !this.gameOver && !this.roundPaused && this.hopProgress >= 1
+          && this.playerLane === lane.index && Math.abs(vehicle.x - this.player.position.x) <= vehicle.width / 2;
         vehicle.x += vehicle.direction * vehicle.speed * delta;
 
         if (vehicle.direction === 1 && vehicle.x > maxX) {
@@ -483,6 +559,7 @@ export class Game {
         }
 
         vehicle.mesh.position.x = vehicle.x;
+        if (carryingPlayer) this.player.position.x += vehicle.direction * vehicle.speed * delta;
       }
     }
   }
@@ -493,6 +570,13 @@ export class Game {
     }
 
     const lane = this.lanes.get(Math.round(-this.player.position.z / TILE_SIZE));
+    if (lane?.kind === "water") {
+      if (this.hopProgress < 1) return;
+      const platform = lane.vehicles.find((vehicle) => Math.abs(vehicle.x - this.player.position.x) <= vehicle.width / 2);
+      if (!platform || Math.abs(this.player.position.x) > WORLD_HALF_WIDTH) this.handleWaterFall();
+      else this.player.position.y = platform.platformHeight ?? 0;
+      return;
+    }
     if (!lane || lane.kind !== "road") {
       return;
     }
@@ -533,7 +617,7 @@ export class Game {
       return;
     }
 
-    const selectedProblem = targetCheckpoint.problems[this.selectedSlotIndex];
+    const selectedProblem = targetCheckpoint.problems[0];
     if (selectedProblem.solved) {
       this.answerText = "";
       this.selectNextUnsolvedProblem(targetCheckpoint);
@@ -543,15 +627,20 @@ export class Game {
     }
 
     if (!checkAnswer(selectedProblem.problem, answer)) {
-      const correctAnswer = selectedProblem.problem.formattedAnswer || String(selectedProblem.problem.answer);
-      this.handleWrongAnswer(selectedProblem.problem.expression, answer, correctAnswer);
+      this.answerEntry.classList.remove("incorrect");
+      void this.answerEntry.offsetWidth;
+      this.answerEntry.classList.add("incorrect");
+      this.answerFeedback.textContent = "Not quite — try again.";
       return;
     }
 
+    this.answerEntry.classList.remove("incorrect");
     selectedProblem.solved = true;
     this.questionsAnsweredByDifficulty[selectedProblem.problem.yearLevel as DifficultyLevel] += 1;
-    targetCheckpoint.unlocked =
-      !this.shouldRequireAllQuestions || targetCheckpoint.problems.every((entry) => entry.solved);
+    this.answersThisGame += 1;
+    if (this.answersThisGame % 4 === 0) this.skips += 1;
+    sessionStorage.setItem("hop-lane-session-stats", JSON.stringify(this.questionsAnsweredByDifficulty));
+    targetCheckpoint.unlocked = true;
     if (targetCheckpoint.unlocked) {
       this.saveUnlockedCheckpoint(targetCheckpoint.laneIndex);
       this.gameScene.setSafeLaneState(targetCheckpoint.visual.surface, "unlocked");
@@ -562,7 +651,27 @@ export class Game {
     this.refreshCheckpointText(targetCheckpoint);
     this.updateQuestionPanel();
     this.updateDifficultyStats();
+    this.updateSkipButton();
     this.updateAnswerDisplay();
+  }
+
+  private skipQuestion(): void {
+    const target = this.targetCheckpoint();
+    if (this.gameOver || this.roundPaused || !target || target.unlocked || this.skips < 1) return;
+    this.skips -= 1;
+    this.answerEntry.classList.remove("incorrect");
+    target.unlocked = true;
+    this.saveUnlockedCheckpoint(target.laneIndex);
+    this.gameScene.setSafeLaneState(target.visual.surface, "unlocked");
+    this.answerText = "";
+    this.refreshCheckpointText(target);
+    this.updateHud();
+  }
+
+  private updateSkipButton(): void {
+    const target = this.targetCheckpoint();
+    this.skipButton.textContent = `Skip question (${this.skips})`;
+    this.skipButton.disabled = this.gameOver || this.roundPaused || !target || target.unlocked || this.skips === 0;
   }
 
   private selectNextUnsolvedProblem(checkpoint: Checkpoint): void {
@@ -601,6 +710,12 @@ export class Game {
     this.playerFlashTime = 0;
     this.player.visible = true;
     this.player.scale.set(1, 1, 1);
+    this.drowningTime = undefined;
+    this.splash.visible = false;
+    for (const name of ["left-hind-leg", "right-hind-leg"]) {
+      const leg = this.player.getObjectByName(name);
+      if (leg) leg.rotation.x = 0;
+    }
   }
 
   private updateSquashedPlayer(delta: number): void {
@@ -613,10 +728,12 @@ export class Game {
   }
 
   private resetRound(feedback = ""): void {
+    this.queuedForwardHops = 0;
     this.gameOver = false;
     this.roundPaused = false;
     this.pendingResultAction = undefined;
     this.answerEntry.hidden = false;
+    this.answerEntry.classList.remove("incorrect");
     this.restartButton.textContent = "Restart";
     this.restartButton.hidden = true;
     this.playerLane = START_LANE;
@@ -639,11 +756,13 @@ export class Game {
   }
 
   private returnToLastSafeLane(feedback = ""): void {
+    this.queuedForwardHops = 0;
     const safeLaneIndex = this.lastSafeLaneIndex();
     this.gameOver = false;
     this.roundPaused = false;
     this.pendingResultAction = undefined;
     this.answerEntry.hidden = false;
+    this.answerEntry.classList.remove("incorrect");
     this.restartButton.textContent = "Restart";
     this.restartButton.hidden = true;
     this.playerLane = safeLaneIndex;
@@ -663,30 +782,9 @@ export class Game {
 
   private restartGame(): void {
     this.livesRemaining = this.maxLives;
+    this.skips = 1;
+    this.answersThisGame = 0;
     this.resetRound();
-  }
-
-  private handleWrongAnswer(question: string, givenAnswer: string, correctAnswer: string): void {
-    this.livesRemaining -= 1;
-    this.updateLivesDisplay();
-    const detail = [
-      `Question: ${question} = ?`,
-      `Your answer: ${givenAnswer}`,
-      `Correct answer: ${correctAnswer}`,
-    ].join("\n");
-
-    if (this.livesRemaining <= 0) {
-      this.endRound("Wrong answer", `${detail}\nNo lives remaining.`, true);
-      return;
-    }
-
-    this.showResult(
-      "Wrong answer",
-      `${detail}\nLives remaining: ${this.livesRemaining}`,
-      "Continue",
-      true,
-      () => this.returnToLastSafeLane(),
-    );
   }
 
   private handleTrafficHit(): void {
@@ -711,6 +809,43 @@ export class Game {
     );
   }
 
+  private handleWaterFall(): void {
+    this.queuedForwardHops = 0;
+    this.livesRemaining -= 1;
+    this.updateLivesDisplay();
+    this.roundPaused = true;
+    this.drowningTime = 0;
+    this.answerEntry.hidden = true;
+    this.skipButton.disabled = true;
+    this.targetHighlight.visible = false;
+    this.questionText.textContent = "Splash!";
+    this.answerFeedback.textContent = "";
+    this.splash.position.set(this.player.position.x, 0.04, this.player.position.z);
+    this.splash.visible = true;
+  }
+
+  private updateDrowning(delta: number): void {
+    if (this.drowningTime === undefined) return;
+    this.drowningTime = Math.min(1, this.drowningTime + delta / 1.1);
+    const t = this.drowningTime;
+    this.player.position.y = -1.1 * t;
+    this.player.rotation.z = Math.sin(t * Math.PI * 3) * 0.25 * (1 - t);
+    this.player.scale.setScalar(1 - t * 0.25);
+    this.splash.scale.setScalar(0.35 + t * 2.1);
+    this.splash.traverse((object) => {
+      if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial) object.material.opacity = 0.8 * (1 - t);
+    });
+    if (t < 1) return;
+    this.drowningTime = undefined;
+    this.splash.visible = false;
+    this.player.visible = false;
+    if (this.livesRemaining <= 0) {
+      this.endRound("Splash!", "You fell in the canal. No lives remaining.", true);
+    } else {
+      this.showResult("Splash!", `You fell in the canal. Lives remaining: ${this.livesRemaining}`, "Continue", true, () => this.returnToLastSafeLane());
+    }
+  }
+
   private showResult(
     title: string,
     detail: string,
@@ -718,8 +853,10 @@ export class Game {
     hideAnswerEntry: boolean,
     action: () => void,
   ): void {
+    this.queuedForwardHops = 0;
     this.roundPaused = true;
     this.answerText = "";
+    this.skipButton.disabled = true;
     this.targetHighlight.visible = false;
     this.questionText.textContent = title;
     this.answerFeedback.textContent = detail;
@@ -731,8 +868,10 @@ export class Game {
   }
 
   private endRound(title: string, detail: string, hideAnswerEntry: boolean): void {
+    this.queuedForwardHops = 0;
     this.gameOver = true;
     this.answerText = "";
+    this.skipButton.disabled = true;
     this.targetHighlight.visible = false;
     this.questionText.textContent = title;
     this.answerFeedback.textContent = detail;
@@ -750,6 +889,7 @@ export class Game {
 
   private resetVehicles(): void {
     for (const lane of this.lanes.values()) {
+      if (lane.train) lane.train.time = lane.train.initialTime;
       for (const vehicle of lane.vehicles) {
         vehicle.x = vehicle.initialX;
         vehicle.mesh.position.x = vehicle.initialX;
@@ -816,12 +956,15 @@ export class Game {
   }
 
   private targetCheckpoint(): Checkpoint | undefined {
-    const currentCheckpoint = this.currentCheckpoint();
-    if (!currentCheckpoint) {
-      return undefined;
-    }
-
-    return this.nextCheckpointFrom(currentCheckpoint);
+    const checkpoints = [...this.lanes.values()]
+      .filter((lane) => lane.checkpoint && lane.index > this.playerLane)
+      .sort((a, b) => a.index - b.index);
+    this.gameScene.camera.updateMatrixWorld();
+    return checkpoints.find((lane) => {
+      if (lane.checkpoint!.unlocked) return false;
+      const point = new THREE.Vector3(0, 0, laneIndexToZ(lane.index)).project(this.gameScene.camera);
+      return point.x >= -1 && point.x <= 1 && point.y >= -1 && point.y <= 1 && point.z >= -1 && point.z <= 1;
+    })?.checkpoint;
   }
 
   private nextCheckpointFrom(checkpoint: Checkpoint): Checkpoint | undefined {
@@ -831,14 +974,14 @@ export class Game {
 
   private updateTargetHighlight(): void {
     const checkpoint = this.targetCheckpoint();
-    if (this.gameOver || !checkpoint || checkpoint.unlocked || this.hopProgress < 1) {
+    if (this.gameOver || this.roundPaused || !checkpoint || checkpoint.unlocked) {
       this.targetHighlight.visible = false;
       return;
     }
 
     this.targetHighlight.visible = true;
     this.targetHighlight.position.set(
-      PROBLEM_SLOTS[this.selectedSlotIndex],
+      0,
       0.045,
       laneIndexToZ(checkpoint.laneIndex) + 0.05,
     );
@@ -851,6 +994,7 @@ export class Game {
     this.updateDifficultyStats();
     this.updateQuestionPanel();
     this.updateAnswerDisplay();
+    this.updateSkipButton();
   }
 
   private updateLivesDisplay(): void {
@@ -868,7 +1012,7 @@ export class Game {
       .map((level) => `${DIFFICULTY_LABELS[level]} ${this.questionsAnsweredByDifficulty[level]}`)
       .join("\n");
 
-    this.difficultyStatsElement.textContent = `${total} correct`;
+    this.difficultyStatsElement.textContent = `${total} correct this session`;
     if (breakdown) {
       this.difficultyStatsElement.dataset.breakdown = breakdown;
     } else {
@@ -881,27 +1025,15 @@ export class Game {
       return;
     }
 
-    const currentCheckpoint = this.currentCheckpoint();
-    if (!currentCheckpoint) {
-      this.questionText.textContent = "Keep hopping";
-      this.answerFeedback.textContent = "";
-      return;
-    }
-
-    const targetCheckpoint = this.nextCheckpointFrom(currentCheckpoint);
+    const targetCheckpoint = this.targetCheckpoint();
+    this.displayedTargetLane = targetCheckpoint?.laneIndex;
     if (!targetCheckpoint) {
-      this.questionText.textContent = "Next lane loading";
+      this.questionText.textContent = "Hop forward to see more questions";
       this.answerFeedback.textContent = "";
       return;
     }
 
-    if (targetCheckpoint.unlocked) {
-      this.questionText.textContent = `${targetCheckpoint.incomingRoadCount} road lane${targetCheckpoint.incomingRoadCount === 1 ? "" : "s"} ahead`;
-      this.answerFeedback.textContent = "";
-      return;
-    }
-
-    const selectedProblem = targetCheckpoint.problems[this.selectedSlotIndex];
+    const selectedProblem = targetCheckpoint.problems[0];
     this.questionText.textContent = `${selectedProblem.problem.expression} = ?`;
     this.answerFeedback.textContent = "";
   }
@@ -917,11 +1049,11 @@ function getLanePlan(index: number): LanePlan {
   let section = 0;
 
   while (true) {
-    const outgoingRoadCount = ROAD_GROUP_SEQUENCE[section % ROAD_GROUP_SEQUENCE.length];
-    const incomingRoadCount =
-      section === 0
-        ? ROAD_GROUP_SEQUENCE[0]
-        : ROAD_GROUP_SEQUENCE[(section - 1) % ROAD_GROUP_SEQUENCE.length];
+    const crossingCount = (n: number): number => n % 4 === 2 || n % 4 === 3
+      ? 1 + (Math.floor(n / 4) % 2)
+      : ROAD_GROUP_SEQUENCE[n % ROAD_GROUP_SEQUENCE.length];
+    const outgoingRoadCount = crossingCount(section);
+    const incomingRoadCount = section === 0 ? crossingCount(0) : crossingCount(section - 1);
 
     if (index === safeIndex) {
       return { kind: "grass", section, incomingRoadCount, outgoingRoadCount, roadOffset: -1 };
@@ -929,7 +1061,7 @@ function getLanePlan(index: number): LanePlan {
 
     if (index > safeIndex && index <= safeIndex + outgoingRoadCount) {
       return {
-        kind: "road",
+        kind: section % 4 === 3 ? "water" : "road",
         section,
         incomingRoadCount,
         outgoingRoadCount,
@@ -952,15 +1084,6 @@ function requireElement<T extends HTMLElement = HTMLElement>(selector: string): 
 
 function readSaveProgressSetting(): boolean {
   return readBooleanQuerySetting(["saveProgress", "save_progress"]);
-}
-
-function readRequireAllQuestionsSetting(): boolean {
-  return readBooleanQuerySetting([
-    "requireAllQuestions",
-    "require_all_questions",
-    "allQuestions",
-    "all_questions",
-  ]);
 }
 
 function readLivesSetting(): number {
@@ -1025,8 +1148,4 @@ function readQuerySetting(names: string[]): string | null {
 
 function isDifficultyLevel(value: string | null): value is DifficultyLevel {
   return DIFFICULTY_LEVELS.includes(value as DifficultyLevel);
-}
-
-function easeOutCubic(value: number): number {
-  return 1 - Math.pow(1 - value, 3);
 }

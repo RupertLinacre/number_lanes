@@ -2,13 +2,13 @@ export interface AnswerInputEvents {
   backspaceCount: number;
   characters: string[];
   clear: boolean;
-  submit: boolean;
+  submit: number;
 }
 
 export class InputController {
-  private pendingAdvance = false;
-  private pendingHorizontal = 0;
-  private pendingSubmit = false;
+  private pendingAdvance = 0;
+  private pendingBackward = false;
+  private pendingSubmit = 0;
   private pendingClear = false;
   private pendingBackspaceCount = 0;
   private readonly pendingCharacters: string[] = [];
@@ -18,21 +18,26 @@ export class InputController {
       return;
     }
 
-    if (event.code === "Space" && !event.repeat) {
+    if ((event.code === "Space" || event.code === "ArrowUp") && !event.repeat) {
       event.preventDefault();
-      this.pendingAdvance = true;
+      this.pendingAdvance += 1;
       return;
     }
 
-    if ((event.code === "ArrowLeft" || event.code === "ArrowRight") && !event.repeat) {
+    if (event.code === "ArrowDown" && !event.repeat) {
       event.preventDefault();
-      this.pendingHorizontal += event.code === "ArrowLeft" ? -1 : 1;
+      this.pendingBackward = true;
       return;
     }
 
-    if (event.code === "Enter" || event.code === "NumpadEnter") {
+    if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
       event.preventDefault();
-      this.pendingSubmit = true;
+      return;
+    }
+
+    if ((event.code === "Enter" || event.code === "NumpadEnter") && !event.repeat) {
+      event.preventDefault();
+      this.pendingSubmit += 1;
       return;
     }
 
@@ -58,16 +63,16 @@ export class InputController {
     window.addEventListener("keydown", this.handleKeyDown);
   }
 
-  consumeAdvance(): boolean {
+  consumeAdvance(): number {
     const shouldAdvance = this.pendingAdvance;
-    this.pendingAdvance = false;
+    this.pendingAdvance = 0;
     return shouldAdvance;
   }
 
-  consumeHorizontal(): -1 | 0 | 1 {
-    const direction = Math.sign(this.pendingHorizontal) as -1 | 0 | 1;
-    this.pendingHorizontal = 0;
-    return direction;
+  consumeBackward(): boolean {
+    const backward = this.pendingBackward;
+    this.pendingBackward = false;
+    return backward;
   }
 
   consumeAnswerInput(): AnswerInputEvents {
@@ -81,7 +86,7 @@ export class InputController {
     this.pendingBackspaceCount = 0;
     this.pendingCharacters.length = 0;
     this.pendingClear = false;
-    this.pendingSubmit = false;
+    this.pendingSubmit = 0;
 
     return events;
   }

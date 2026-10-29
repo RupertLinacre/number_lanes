@@ -28,12 +28,14 @@
         <div class="live-answer">
           <span id="answer-prefix">Answer</span>
           <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
+          <span class="answer-cross" aria-hidden="true">×</span>
         </div>
         <div id="answer-feedback"></div>
+        <button id="skip-button" type="button">Skip question (1)</button>
         <button id="restart-button" type="button" hidden>Restart</button>
       </section>
       <div id="gameplay-instructions">
-        Use left and right arrow to select question. Press return or space to hop
+        Type the answer. Press up or space to hop forward, down to hop back. Flashing red means a train is coming.
       </div>
       <details id="settings-panel">
         <summary aria-label="Game settings">⚙</summary>
@@ -41,10 +43,6 @@
           <label>
             <input id="setting-save-progress" type="checkbox" />
             Save progress
-          </label>
-          <label>
-            <input id="setting-require-all" type="checkbox" />
-            Answer all three
           </label>
           <label>
             Lives
