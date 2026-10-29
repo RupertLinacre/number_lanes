@@ -1110,7 +1110,7 @@ function readLivesSetting(): number {
 
 function readBaseDifficultySetting(): DifficultyLevel {
   const value = readQuerySetting(["baseDifficulty", "base_difficulty", "baseYear", "base_year"]);
-  return isDifficultyLevel(value) ? value : "year2";
+  return isDifficultyLevel(value) ? value : "year3";
 }
 
 function createQuestionStats(): Record<DifficultyLevel, number> {

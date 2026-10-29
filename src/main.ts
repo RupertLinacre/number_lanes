@@ -49,12 +49,12 @@ function setupSettingsControls(): void {
   baseDifficulty.value = readEnumQuerySetting(
     ["baseDifficulty", "base_difficulty", "baseYear", "base_year"],
     ["reception", "year1", "year2", "year3", "year4", "year5", "year6"],
-    "year2",
+    "year3",
   );
 
   saveProgress.addEventListener("change", () => updateBooleanSetting("save_progress", saveProgress.checked));
   lives.addEventListener("change", () => updateNumberSetting("lives", lives.value));
-  baseDifficulty.addEventListener("change", () => updateEnumSetting("base_difficulty", baseDifficulty.value, "year2"));
+  baseDifficulty.addEventListener("change", () => updateEnumSetting("base_difficulty", baseDifficulty.value, "year3"));
 }
 
 function updateBooleanSetting(name: string, value: boolean): void {
