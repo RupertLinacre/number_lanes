@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/number_lanes/next/favicon.svg" type="image/svg+xml" />
     <title>Hop Lane</title>
-    <script type="module" crossorigin src="/number_lanes/next/assets/index-Bz0_790x.js"></script>
-    <link rel="stylesheet" crossorigin href="/number_lanes/next/assets/index-COIkcNud.css">
+    <script type="module" crossorigin src="/number_lanes/next/assets/index-BvfSEg5s.js"></script>
+    <link rel="stylesheet" crossorigin href="/number_lanes/next/assets/index-eTBenrYp.css">
   </head>
   <body>
     <div id="app">
@@ -33,7 +33,7 @@
           <span class="answer-cross" aria-hidden="true">×</span>
         </div>
         <div id="answer-feedback"></div>
-        <button id="skip-button" type="button">Skip question (1)</button>
+        <button id="skip-button" type="button" hidden>New question (1)</button>
         <button id="restart-button" type="button" hidden>Restart</button>
       </section>
       <div id="gameplay-instructions">
@@ -45,6 +45,10 @@
           <label>
             <input id="setting-save-progress" type="checkbox" />
             Save progress
+          </label>
+          <label>
+            <input id="setting-allow-skips" type="checkbox" />
+            Allow question swaps
           </label>
           <label>
             Lives
