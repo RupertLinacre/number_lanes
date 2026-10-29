@@ -267,7 +267,7 @@ export class Game {
         this.addVehicles(lane, plan.section);
       }
     } else if (plan.kind === "water") {
-      if ((Math.floor(plan.section / 4) + plan.roadOffset) % 2 === 0) this.addLilyPads(lane);
+      if (plan.roadOffset === 0) this.addLilyPads(lane);
       else this.addCanalBoats(lane, plan.section);
     }
 
@@ -1049,9 +1049,11 @@ function getLanePlan(index: number): LanePlan {
   let section = 0;
 
   while (true) {
-    const crossingCount = (n: number): number => n % 4 === 2 || n % 4 === 3
-      ? 1 + (Math.floor(n / 4) % 2)
-      : ROAD_GROUP_SEQUENCE[n % ROAD_GROUP_SEQUENCE.length];
+    const crossingCount = (n: number): number => n % 4 === 3
+      ? 2
+      : n % 4 === 2
+        ? 1 + (Math.floor(n / 4) % 2)
+        : ROAD_GROUP_SEQUENCE[n % ROAD_GROUP_SEQUENCE.length];
     const outgoingRoadCount = crossingCount(section);
     const incomingRoadCount = section === 0 ? crossingCount(0) : crossingCount(section - 1);
 

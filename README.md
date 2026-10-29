@@ -28,6 +28,6 @@ deployment may remove the preview until it is deployed again.
 
 Each safe zone has one question to answer before crossing. The correct-answer total lasts for the browser-tab session, including across game restarts and reloads. Watch for flashing red signs at railway tracks: they warn of a fast approaching train. Collisions cost a life. Wrong answers can be edited and tried again without losing a life.
 
-On canal crossings, hop across stationary lily pads and ride moving canal boats. Landing in the water or riding off the edge costs a life.
+On canal crossings, hop across stationary lily pads followed by a lane of moving canal boats. Landing in the water or riding off the edge costs a life.
 
 You can answer or skip the next unanswered visible question in advance, including while crossing. Questions can be answered in order for as long as they remain visible.
