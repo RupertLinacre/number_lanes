@@ -56,6 +56,14 @@ export class InputController {
     window.addEventListener("keydown", this.handleKeyDown);
   }
 
+  pressTouchKey(key: string): void {
+    if (key === "hop") this.pendingAdvance += 1;
+    else if (key === "submit") this.pendingSubmit += 1;
+    else if (key === "back") this.pendingBackspaceCount += 1;
+    else if (key === "clear") this.pendingClear = true;
+    else if (isAnswerCharacter(key)) this.pendingCharacters.push(key);
+  }
+
   consumeAdvance(): number {
     const shouldAdvance = this.pendingAdvance;
     this.pendingAdvance = 0;

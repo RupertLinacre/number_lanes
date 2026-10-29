@@ -12,7 +12,6 @@
         <div>
           <span class="label">Score</span>
           <strong id="score">0</strong>
-          <div id="difficulty-stats" aria-label="Correct answers total"></div>
         </div>
         <div>
           <span class="label">Best</span>
@@ -22,17 +21,34 @@
           <span class="label">Lives</span>
           <strong id="lives">1</strong>
         </div>
+        <div id="answers-display">
+          <span class="label">Answers</span>
+          <strong id="difficulty-stats" aria-label="Correct answers this session">0</strong>
+        </div>
       </div>
       <section id="answer-panel" aria-live="polite">
-        <div id="question-text">Ready?</div>
-        <div class="live-answer">
-          <span id="answer-prefix">Answer</span>
-          <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
-          <span class="answer-cross" aria-hidden="true">×</span>
+        <div class="question-row">
+          <div id="question-text">Ready?</div>
+          <div class="live-answer">
+            <span id="answer-prefix">Answer</span>
+            <div id="answer-input" role="textbox" aria-label="Live math answer"></div>
+            <span class="answer-cross" aria-hidden="true">×</span>
+          </div>
+          <button id="clear-button" type="button" aria-label="Clear answer">Clear</button>
         </div>
         <div id="answer-feedback"></div>
-        <button id="skip-button" type="button" hidden>New question (1)</button>
+        <div id="result-answers" hidden></div>
+        <button id="skip-button" type="button" hidden>Skip</button>
         <button id="restart-button" type="button" hidden>Restart</button>
+        <div id="touch-controls">
+          <div id="number-pad" role="group" aria-label="Answer keypad">
+            <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+            <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+            <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+            <button type="button" data-key="-" aria-label="Minus">−</button><button type="button" data-key="0">0</button><button type="button" data-key="." aria-label="Decimal point">.</button>
+            <button type="button" data-key="back" aria-label="Delete last digit">⌫</button><button type="button" data-key="submit" aria-label="Check answer">✓</button><button type="button" data-key="hop" class="hop-key" aria-label="Hop forward">Hop ↑</button>
+          </div>
+        </div>
       </section>
       <div id="gameplay-instructions">
         Type the answer. Press up or space to hop forward. Flashing red means a train is coming.

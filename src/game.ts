@@ -101,6 +101,7 @@ export class Game {
   private readonly answerDisplay: HTMLElement;
   private readonly answerFeedback: HTMLElement;
   private readonly restartButton: HTMLButtonElement;
+  private readonly resultAnswers: HTMLElement;
   private playerLane = START_LANE;
   private targetLane = START_LANE;
   private selectedSlotIndex = START_SLOT_INDEX;
@@ -150,6 +151,7 @@ export class Game {
     this.skipButton = requireElement("#skip-button");
     this.skipButton.addEventListener("click", () => { this.skipQuestion(); this.skipButton.blur(); });
     this.restartButton = requireElement("#restart-button");
+    this.resultAnswers = requireElement("#result-answers");
     this.restartButton.addEventListener("click", () => this.handleResultButton());
 
     this.player = this.gameScene.createPlayer();
@@ -677,8 +679,9 @@ export class Game {
 
   private updateSkipButton(): void {
     const target = this.targetCheckpoint();
-    this.skipButton.hidden = !this.allowSkips;
-    this.skipButton.textContent = `New question (${this.skips})`;
+    this.skipButton.hidden = !this.allowSkips || this.skips === 0;
+    this.skipButton.textContent = "Skip";
+    this.skipButton.setAttribute("aria-label", `Skip question (${this.skips} available)`);
     this.skipButton.disabled = this.gameOver || this.roundPaused || !target || target.unlocked || this.skips === 0;
   }
 
@@ -737,6 +740,8 @@ export class Game {
 
   private resetRound(feedback = ""): void {
     this.queuedForwardHops = 0;
+    this.resultAnswers.hidden = true;
+    this.setTouchControlsEnabled(true);
     this.gameOver = false;
     this.roundPaused = false;
     this.pendingResultAction = undefined;
@@ -765,6 +770,8 @@ export class Game {
 
   private returnToLastSafeLane(feedback = ""): void {
     this.queuedForwardHops = 0;
+    this.resultAnswers.hidden = true;
+    this.setTouchControlsEnabled(true);
     const safeLaneIndex = this.lastSafeLaneIndex();
     this.gameOver = false;
     this.roundPaused = false;
@@ -821,6 +828,7 @@ export class Game {
   private handleWaterFall(): void {
     this.sound.play("splash");
     this.queuedForwardHops = 0;
+    this.setTouchControlsEnabled(false);
     this.livesRemaining -= 1;
     this.updateLivesDisplay();
     this.roundPaused = true;
@@ -864,12 +872,14 @@ export class Game {
     action: () => void,
   ): void {
     this.queuedForwardHops = 0;
+    this.setTouchControlsEnabled(false);
     this.roundPaused = true;
     this.answerText = "";
     this.skipButton.disabled = true;
     this.targetHighlight.visible = false;
     this.questionText.textContent = title;
     this.answerFeedback.textContent = detail;
+    this.showSessionAnswers();
     this.answerEntry.hidden = hideAnswerEntry;
     this.restartButton.textContent = buttonText;
     this.restartButton.hidden = false;
@@ -879,12 +889,14 @@ export class Game {
 
   private endRound(title: string, detail: string, hideAnswerEntry: boolean): void {
     this.queuedForwardHops = 0;
+    this.setTouchControlsEnabled(false);
     this.gameOver = true;
     this.answerText = "";
     this.skipButton.disabled = true;
     this.targetHighlight.visible = false;
     this.questionText.textContent = title;
     this.answerFeedback.textContent = detail;
+    this.showSessionAnswers();
     this.answerEntry.hidden = hideAnswerEntry;
     this.restartButton.textContent = "Restart";
     this.restartButton.hidden = false;
@@ -895,6 +907,18 @@ export class Game {
   private handleResultButton(): void {
     const action = this.pendingResultAction ?? (() => this.restartGame());
     action();
+  }
+
+  private showSessionAnswers(): void {
+    const total = DIFFICULTY_LEVELS.reduce((sum, level) => sum + this.questionsAnsweredByDifficulty[level], 0);
+    this.resultAnswers.textContent = `${total} ${total === 1 ? "answer" : "answers"} this session`;
+    this.resultAnswers.hidden = false;
+  }
+
+  private setTouchControlsEnabled(enabled: boolean): void {
+    document.querySelectorAll<HTMLButtonElement>("#number-pad button").forEach((button) => {
+      button.disabled = !enabled;
+    });
   }
 
   private resetVehicles(): void {
@@ -1012,7 +1036,7 @@ export class Game {
       .map((level) => `${DIFFICULTY_LABELS[level]} ${this.questionsAnsweredByDifficulty[level]}`)
       .join("\n");
 
-    this.difficultyStatsElement.textContent = `${total} correct this session`;
+    this.difficultyStatsElement.textContent = String(total);
     if (breakdown) {
       this.difficultyStatsElement.dataset.breakdown = breakdown;
     } else {

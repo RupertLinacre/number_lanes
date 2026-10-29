@@ -16,9 +16,22 @@ const sound = new GameSound();
 const game = new Game(gameScene, input, sound);
 
 setupSettingsControls();
+document.querySelector<HTMLButtonElement>("#clear-button")?.addEventListener("click", (event) => {
+  input.pressTouchKey("clear");
+  (event.currentTarget as HTMLButtonElement).blur();
+});
+document.querySelectorAll<HTMLButtonElement>("#number-pad button").forEach((button) => {
+  button.addEventListener("click", () => {
+    input.pressTouchKey(button.dataset.key ?? "");
+    button.blur();
+  });
+});
 
 window.addEventListener("resize", () => game.handleResize());
+const canvasResizeObserver = new ResizeObserver(() => game.handleResize());
+canvasResizeObserver.observe(canvas);
 window.addEventListener("beforeunload", () => {
+  canvasResizeObserver.disconnect();
   input.dispose();
   sound.dispose();
   game.stop();

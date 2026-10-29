@@ -23,6 +23,7 @@ deployment may remove the preview until it is deployed again.
 - `Space`, `Enter` or `Up`: hop forward one lane
 - Number keys: enter an answer; a correct answer is accepted immediately
 - `Backspace` / `Escape`: edit or clear the answer
+- On phones and tablets, use the on-screen keypad and Hop button to play.
 - Optionally enable question swaps in settings to replace a question with another at the same difficulty. Each game starts with one swap and earns another for every four correct answers.
 
 Each safe zone has one question to answer before crossing. The correct-answer total lasts for the browser-tab session, including across game restarts and reloads. Watch for flashing red signs at railway tracks: they warn of a fast approaching train. Collisions cost a life. Wrong answers can be edited and tried again without losing a life.
